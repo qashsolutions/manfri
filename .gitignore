@@ -1,0 +1,42 @@
+# ── Node / pnpm ──────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Python / uv ──────────────────────────────────────────────
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+
+# ── Secrets / env ────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Terraform (state & vars are never committed; lock file is) ─
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+
+# ── OS / editor ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+
+# ── Claude local settings ────────────────────────────────────
+.claude/settings.local.json

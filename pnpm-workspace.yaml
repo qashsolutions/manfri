@@ -1,0 +1,10 @@
+# JS/TS workspace. Python services live under services/* and are managed by the
+# uv workspace declared in the root pyproject.toml — intentionally separate.
+packages:
+  - web
+  - packages/*
+# Native deps with install scripts we explicitly trust (pnpm blocks builds by
+# default). sharp backs next/image; unrs-resolver backs the ESLint import resolver.
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
