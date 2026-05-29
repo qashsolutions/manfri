@@ -29,6 +29,7 @@ from sqlalchemy import (
     Identity,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     Text,
     UniqueConstraint,
@@ -147,6 +148,7 @@ class Candidate(Base):
     )
     external_ref: Mapped[str | None] = mapped_column(Text)
     redaction_status: Mapped[str] = mapped_column(Text, server_default=text("'pending'"))
+    pii_jsonb: Mapped[bytes | None] = mapped_column(LargeBinary)  # envelope-encrypted (WP 0.7)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )
@@ -351,4 +353,24 @@ class Resume(Base):
             unique=True,
             postgresql_where=text("is_current"),
         ),
+    )
+
+
+class TenantKey(Base):
+    """Per-tenant wrapped data-encryption key (DEK) for PII envelope encryption (WP 0.7).
+
+    The DEK encrypts ``candidate.pii_jsonb``; it is stored only in *wrapped* form
+    (a KEK wraps it — a local key shim in dev, AWS KMS in cloud). Crypto-shred =
+    delete this row: the DEK is destroyed and the tenant's PII is unrecoverable.
+    """
+
+    __tablename__ = "tenant_key"
+
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), primary_key=True
+    )
+    wrapped_dek: Mapped[bytes] = mapped_column(LargeBinary)
+    key_version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
     )
