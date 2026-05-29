@@ -7,7 +7,7 @@
 > this file wins on "what must never be violated."
 >
 > **Status:** Design complete **and Phase 0 built** — all 14 work packages on branch `phase-0-foundations`, 47 tests green locally (mypy strict + ruff). Started ~2026-05-28.
-> Exit criteria all met locally (leak probe · run-id coverage · p95<50ms · audit chain · walking skeleton). Next: push to a remote so CI runs the gates, ratify the ⚖️ [`DECISIONS.md`](docs/DECISIONS.md) items with counsel, then **Phase 1**. See [§15 Where We Are / What's Next](#15-where-we-are--whats-next).
+> Exit criteria all met locally (leak probe · run-id coverage · p95<50ms · audit chain · walking skeleton). **Pushed to `qashsolutions/manfri`; CI green** (PR #1: js · python · db-gates · container). Next: a market-informed re-plan (commodity wedge — mass candidate email + resume DB ~$10/user — + premium AI tier) on Vercel + Supabase, ratify the ⚖️ [`DECISIONS.md`](docs/DECISIONS.md) items with counsel, then **Phase 1**. See [§15 Where We Are / What's Next](#15-where-we-are--whats-next).
 
 ---
 
@@ -174,6 +174,8 @@ Two ordering principles: **(1) compliance-before-scale** — provenance/audit/re
 | **4** | Durable Agentic Continuous Assessment & RAG-at-Scale | Temporal + LangGraph agents (**advisory-only**, human-gated), two-stage recall-then-score, hardened cited RAG, **fenced fraud detection**. The differentiator. | needs 2+3 |
 | **5** | Client Preference Learning & Personalized Ranking | Hierarchical (req⊂client⊂global) model, LambdaMART, bounded delta that can't cross GREEN/RED, continuous proxy/4-5ths screening w/ auto-dampening. **Most bias-sensitive — last.** | needs 2+4 + feedback corpus |
 | **6** | Hardening, Isolated-Tier & Regulatory Breadth | db-per-tenant escape hatch, Aurora/Qdrant if triggers fire, private-inference tier, multi-jurisdiction compliance, candidate self-service. | demand/contract/regulation-triggered |
+
+> **Execution re-sequenced (2026-05-29) — wedge-first.** Go-to-market now leads with a **Wedge: Compliant Talent CRM** (resume DB + mass candidate outreach, ~$10/user, riding the Phase-0 compliance spine) as the new **Phase 1**; the explainable screening loop above (originally Phase 1) becomes the **premium Phase 2**, shifting originals 2→3 … 6→7. The compliance-before-scale ordering is preserved. This table remains the original compliance-ordered map; the **live execution sequence + green-checked status is [`STATUS.md`](STATUS.md)**.
 
 ## 11. Domain Glossary
 
