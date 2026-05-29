@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@manfriday/contracts": "workspace:*",
+    "iron-session": "^8.0.4",
+    "jose": "^5.9.6",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

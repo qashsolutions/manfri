@@ -11,8 +11,12 @@ contract; the drift gate against ``packages/contracts`` is added in WP 0.12.
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from typing import Annotated
+
+from fastapi import Depends, FastAPI
 from pydantic import BaseModel
+
+from app.auth import AuthClaims, require_claims
 
 app = FastAPI(
     title="ManFriday Internal API",
@@ -33,3 +37,17 @@ class HealthStatus(BaseModel):
 def get_health() -> HealthStatus:
     """Liveness/readiness probe for the walking skeleton."""
     return HealthStatus(status="ok", service="api", phase=0)
+
+
+class WhoAmI(BaseModel):
+    """The verified internal-JWT claims, echoed back."""
+
+    org_id: str
+    sub: str
+    roles: list[str]
+
+
+@app.get("/whoami", response_model=WhoAmI, operation_id="whoami")
+def whoami(claims: Annotated[AuthClaims, Depends(require_claims)]) -> WhoAmI:
+    """Echo the verified internal-JWT claims (auth smoke test). Requires a Bearer token."""
+    return WhoAmI(org_id=claims.org_id, sub=claims.sub, roles=claims.roles)

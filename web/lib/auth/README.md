@@ -1,9 +1,12 @@
-# `web/lib/auth` — BFF session & internal-JWT minting
+# `web/lib/auth` — BFF session & internal-JWT minting (WP 0.10)
 
-**Empty in WP 0.1.** Filled in **WP 0.10**:
+- `session.ts` — HttpOnly, Secure, `SameSite=Lax` **encrypted session** (iron-session).
+  The browser never holds a FastAPI token.
+- `jwt.ts` — mints the 5-minute **EdDSA (Ed25519)** internal JWT carrying the tenant
+  claims `{sub, org_id, active_client_id, roles, scope, consent_caps, jti, exp}`.
+  FastAPI verifies it via JWKS and sets the RLS GUCs from the **verified** claims
+  (invariant #3). The shape matches the Python verifier in `services/api/app/auth`.
 
-- HttpOnly, Secure, `SameSite=Lax`, encrypted BFF session cookie (iron-session / Auth.js, rotating key). The browser never holds a FastAPI token.
-- Per-request minting of a **5-minute EdDSA (Ed25519)** internal JWT with claims `{sub, org_id, active_client_id, roles[], scope, consent_caps, jti, exp}`, verified by FastAPI via JWKS.
-- In-house recruiter login (email + password + TOTP) and candidate magic-link/OTP scaffolding.
-
-See [`docs/PHASE_0.md` §10](../../../docs/PHASE_0.md) and invariant #3 (RLS GUCs are set from *verified JWT claims*, never client input).
+Next: wire these into the recruiter login route (email + password + TOTP) and the
+typed FastAPI client (the JWT rides the `Authorization` header). Candidate
+passwordless magic-link/OTP is P1+; WorkOS SSO/SCIM is P3.
