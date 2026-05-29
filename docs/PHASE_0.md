@@ -5,7 +5,7 @@
 >
 > SQL/code below is **illustrative sketch**, not final migrations — enough to build from, to be turned into real Alembic migrations / code during implementation.
 >
-> **Build status (2026-05-28): BUILT.** All 14 work packages are implemented on branch `phase-0-foundations` (47 tests green; mypy strict + ruff); the sketches below became real Alembic migrations `0001`–`0005` + code. All four exit-criteria gates ([§16](#16-success-metrics--exit-criteria)) are met locally (p95 RLS query ≈0.1ms — `db/bench_rls_p95.py`); see [`CLAUDE.md` §15](../CLAUDE.md). Local dev uses Postgres / Redis / filesystem / local-KEK stand-ins behind swappable interfaces; cloud (Neon / Vercel / AWS / KMS) and CI execution are gated on credentials + a Git remote.
+> **Build status (2026-05-28): BUILT.** All 14 work packages are implemented on branch `phase-0-foundations` (47 tests green; mypy strict + ruff); the sketches below became a single replayable Alembic baseline (`0001`, validated by a from-scratch CI replay) + code. All four exit-criteria gates ([§16](#16-success-metrics--exit-criteria)) are met locally (p95 RLS query ≈0.1ms — `db/bench_rls_p95.py`); see [`CLAUDE.md` §15](../CLAUDE.md). Local dev uses Postgres / Redis / filesystem / local-KEK stand-ins behind swappable interfaces; cloud (Neon / Vercel / AWS / KMS) and CI execution are gated on credentials + a Git remote.
 
 ---
 

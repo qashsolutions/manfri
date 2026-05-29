@@ -1,13 +1,16 @@
-"""tenancy & RLS spine (WP 0.2)
+"""phase 0 baseline — full tenancy / provenance / audit / resume / PII schema + RLS
 
-Creates the tenancy tables + minimal candidate/embedding shells, the global role
-lookup, the non-superuser/non-BYPASSRLS ``manfriday_app`` role, least-privilege
-grants, the HNSW index, and ENABLE + FORCE Row-Level Security with a
-``tenant_isolation`` policy on every tenant-scoped table (invariant #3).
+Single baseline migration for the Phase 0 greenfield (the idiomatic starting point;
+later phases add incremental migrations on top). Creates every table from the ORM
+metadata, then layers the DDL the ORM can't express: the citext/vector extensions,
+the embedding HNSW index, the role-taxonomy seed, the non-superuser/non-BYPASSRLS
+``manfriday_app`` role + least-privilege grants (``audit_event`` is INSERT-only),
+and ENABLE + FORCE Row-Level Security with a ``tenant_isolation`` policy on every
+tenant-scoped table (invariant #3). Replayable from scratch.
 
 Revision ID: 0001
 Revises:
-Create Date: 2026-05-28
+Create Date: 2026-05-29
 
 """
 
@@ -24,7 +27,7 @@ down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-# Tenant-scoped tables and the column RLS keys off. `role` is global (no RLS).
+# (table, RLS-key column) for every tenant-scoped table. `role` is a global lookup.
 TENANT_TABLES: list[tuple[str, str]] = [
     ("organization", "id"),
     ("client", "org_id"),
@@ -32,11 +35,15 @@ TENANT_TABLES: list[tuple[str, str]] = [
     ("membership", "org_id"),
     ("candidate", "org_id"),
     ("embedding", "org_id"),
+    ("parse_run", "org_id"),
+    ("scoring_run", "org_id"),
+    ("generation_run", "org_id"),
+    ("score", "org_id"),
+    ("resume", "org_id"),
+    ("audit_event", "org_id"),
+    ("tenant_key", "org_id"),
 ]
-
-# NULLIF(..., '') makes an unset OR empty GUC deny-by-default (NULL never matches),
-# so a query with no tenant context returns zero rows instead of erroring.
-_PREDICATE = "{col} = NULLIF(current_setting('app.current_org', true), '')::uuid"
+_PRED = "{col} = NULLIF(current_setting('app.current_org', true), '')::uuid"
 
 
 def upgrade() -> None:
@@ -46,7 +53,7 @@ def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS citext")
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
-    # Tables + their btree indexes, from the ORM metadata (single source of truth).
+    # All tables + their btree/unique indexes, from the ORM metadata.
     Base.metadata.create_all(bind)
 
     # HNSW index for cosine ANN (needs an opclass — not expressible in ORM metadata).
@@ -55,17 +62,15 @@ def upgrade() -> None:
         "USING hnsw (vector vector_cosine_ops) WITH (m = 16, ef_construction = 64)"
     )
 
-    # Seed the global role taxonomy.
+    # Global role taxonomy.
     op.execute(
         "INSERT INTO role (key) VALUES "
         "('recruiter'),('agency_admin'),('client_hiring_manager'),"
-        "('candidate'),('auditor'),('platform_super_admin') "
-        "ON CONFLICT (key) DO NOTHING"
+        "('candidate'),('auditor'),('platform_super_admin') ON CONFLICT (key) DO NOTHING"
     )
 
-    # The application role: LOGIN, but NOT superuser and NOT BYPASSRLS, so RLS
-    # applies to it. Local dev uses trust auth (no password); real envs set auth
-    # out-of-band via secrets + pg_hba.
+    # Application role: LOGIN, NOT superuser, NOT BYPASSRLS, so RLS applies. Local dev
+    # uses trust auth; real envs set auth out-of-band via secrets + pg_hba.
     op.execute(
         """
         DO $$ BEGIN
@@ -78,17 +83,22 @@ def upgrade() -> None:
 
     # Least-privilege grants. DDL stays with the owner; the app only does DML.
     op.execute("GRANT USAGE ON SCHEMA public TO manfriday_app")
+    op.execute("GRANT SELECT ON role TO manfriday_app")
     op.execute(
         "GRANT SELECT, INSERT, UPDATE, DELETE ON "
-        "organization, client, app_user, membership, candidate, embedding "
-        "TO manfriday_app"
+        "organization, client, app_user, membership, candidate, embedding, "
+        "parse_run, scoring_run, generation_run, score TO manfriday_app"
     )
-    op.execute("GRANT SELECT ON role TO manfriday_app")
+    op.execute("GRANT SELECT, INSERT, UPDATE ON resume TO manfriday_app")
+    op.execute("GRANT SELECT, INSERT, DELETE ON tenant_key TO manfriday_app")
+    # audit_event is append-only: SELECT + INSERT only; UPDATE/DELETE revoked.
+    op.execute("GRANT SELECT, INSERT ON audit_event TO manfriday_app")
+    op.execute("REVOKE UPDATE, DELETE ON audit_event FROM manfriday_app")
 
-    # Row-Level Security on every tenant-scoped table. FORCE so it applies even
-    # to the table owner; the policy covers reads (USING) and writes (WITH CHECK).
+    # Row-Level Security on every tenant-scoped table. FORCE so it applies even to
+    # the table owner; the policy covers reads (USING) and writes (WITH CHECK).
     for table, col in TENANT_TABLES:
-        predicate = _PREDICATE.format(col=col)
+        predicate = _PRED.format(col=col)
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
         op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
         op.execute(
@@ -98,9 +108,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    bind = op.get_bind()
-    # Dropping tables removes their policies and the manfriday_app grants with them.
-    Base.metadata.drop_all(bind)
+    Base.metadata.drop_all(op.get_bind())
     op.execute(
         """
         DO $$ BEGIN
