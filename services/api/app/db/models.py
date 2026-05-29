@@ -21,10 +21,12 @@ from typing import Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Identity,
     Integer,
     Numeric,
     Text,
@@ -263,4 +265,41 @@ class Score(Base):
     evidence_refs: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class AuditEvent(Base):
+    """Append-only, hash-chained audit — the authoritative decision record (all phases).
+
+    INSERT-only at the DB (manfriday_app has no UPDATE/DELETE grant). Each row
+    chains to its predecessor for the org: ``hash = sha256(prev_hash || canonical)``.
+    Tampering breaks the chain and the verifier detects it (invariant #5).
+    WORM / S3 Object-Lock anchoring of the chain head is deferred to Phase 1.
+    """
+
+    __tablename__ = "audit_event"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(always=True), unique=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    actor_id: Mapped[uuid.UUID | None] = mapped_column()
+    actor_type: Mapped[str] = mapped_column(Text)
+    action: Mapped[str] = mapped_column(Text)
+    entity_type: Mapped[str | None] = mapped_column(Text)
+    entity_id: Mapped[uuid.UUID | None] = mapped_column()
+    before_jsonb: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    after_jsonb: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    prev_hash: Mapped[str] = mapped_column(Text)
+    hash: Mapped[str] = mapped_column(Text)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    # Chain integrity guards: each hash is unique, and each prev_hash links to at
+    # most one successor per org (prevents forks; genesis prev_hash is '').
+    __table_args__ = (
+        UniqueConstraint("hash"),
+        UniqueConstraint("org_id", "prev_hash"),
     )

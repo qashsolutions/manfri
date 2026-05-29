@@ -56,8 +56,8 @@ jobs:
       - name: pytest
         run: uv run pytest
 
-  leak-probe:
-    name: Leak probe — RLS · pgvector · worker · PgBouncer (Phase 0 gate)
+  db-gates:
+    name: DB gates — RLS · leak probe · provenance · audit
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -89,12 +89,8 @@ jobs:
           sudo apt-get update && sudo apt-get install -y pgbouncer
           sudo systemctl stop pgbouncer 2>/dev/null || sudo service pgbouncer stop 2>/dev/null || true
           /usr/sbin/pgbouncer -d db/pgbouncer.dev.ini
-      - name: Cross-tenant leak probe + provenance + RLS isolation
-        run: >-
-          uv run pytest -v
-          services/api/tests/test_leak_probe.py
-          services/api/tests/test_rls_isolation.py
-          services/api/tests/test_provenance.py
+      - name: RLS · leak probe · provenance · audit (full suite vs a real DB)
+        run: uv run pytest -v
 
   container:
     name: Container — build api image
