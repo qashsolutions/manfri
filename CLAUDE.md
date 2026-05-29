@@ -6,8 +6,8 @@
 > [`docs/ROADMAP.md`](docs/ROADMAP.md). When those and this file disagree, the docs win on detail;
 > this file wins on "what must never be violated."
 >
-> **Status:** Greenfield. Design + PRD + Phase 0 build spec + decision log complete; **no application code yet.** Started ~2026-05-28.
-> Next step is to **ratify the proposed defaults** in [`docs/DECISIONS.md`](docs/DECISIONS.md) and/or **start the Phase 0 build** ([`docs/PHASE_0.md`](docs/PHASE_0.md)). See [§15 Where We Are / What's Next](#15-where-we-are--whats-next).
+> **Status:** Design complete **and Phase 0 built** — all 14 work packages on branch `phase-0-foundations`, 47 tests green locally (mypy strict + ruff). Started ~2026-05-28.
+> Exit criteria all met locally (leak probe · run-id coverage · p95<50ms · audit chain · walking skeleton). Next: push to a remote so CI runs the gates, ratify the ⚖️ [`DECISIONS.md`](docs/DECISIONS.md) items with counsel, then **Phase 1**. See [§15 Where We Are / What's Next](#15-where-we-are--whats-next).
 
 ---
 
@@ -224,28 +224,35 @@ Many are **product/legal calls only the owner + counsel can make** — surface t
 
 ```
 manfriday/
-├── CLAUDE.md            # ← this file (always-loaded context anchor)
-├── docs/
-│   ├── ARCHITECTURE.md  # full design (13 sections)
-│   ├── ROADMAP.md       # 7 phases
-│   ├── PRD.md           # product requirements + MVP cut line
-│   ├── DECISIONS.md     # proposed defaults for open product/legal calls
-│   └── PHASE_0.md       # buildable Phase 0 spec + work packages
-└── .claude/
-    └── settings.local.json
+├── CLAUDE.md  README.md  SETUP.md   # context anchor · intro · local setup
+├── docs/                # ARCHITECTURE · ROADMAP · PRD · DECISIONS · PHASE_0
+├── web/                 # Next.js 15 BFF (lib/auth EdDSA JWT + iron-session, lib/api)
+├── services/
+│   ├── api/             # FastAPI: db (RLS models + Alembic), router, redaction,
+│   │                    #   audit, provenance, crypto, auth, telemetry, ingestion
+│   └── workers/         # Arq ingestion worker (workers → api workspace dep)
+├── packages/
+│   ├── contracts/       # OpenAPI 3.1 emitted by FastAPI → generated TS client
+│   └── prompts/         # versioned prompt templates (git = version pin)
+├── infra/               # Terraform skeleton (AWS + Vercel + Neon)
+├── db/                  # leak-probe fixtures · pgbouncer.dev.ini · RLS p95 benchmark
+├── .github/workflows/   # CI: js · python · db-gates · container
+└── .claude/settings.local.json
 ```
-*(No application code yet. The intended Phase 0 monorepo structure — `web/` Next.js BFF, `services/api/` FastAPI, `services/workers/`, `packages/contracts/` + `packages/prompts/`, `infra/` Terraform, `db/` — is specified in [`docs/PHASE_0.md` §3](docs/PHASE_0.md).)*
+*(The Phase 0 monorepo is **built** (pnpm + uv workspaces) per [`docs/PHASE_0.md` §3](docs/PHASE_0.md); see [§15](#15-where-we-are--whats-next) for the work-package + exit-criteria status.)*
 
 ## 15. Where We Are / What's Next
 
-**Done:** problem framing, full architecture, phased roadmap, this context anchor, **PRD** ([`docs/PRD.md`](docs/PRD.md)), **decision log with proposed defaults** ([`docs/DECISIONS.md`](docs/DECISIONS.md)), **buildable Phase 0 spec** ([`docs/PHASE_0.md`](docs/PHASE_0.md)).
+**Done:** problem framing, full architecture, phased roadmap, this context anchor, **PRD**, **decision log** ([`docs/DECISIONS.md`](docs/DECISIONS.md)), **buildable Phase 0 spec** ([`docs/PHASE_0.md`](docs/PHASE_0.md)), and the **Phase 0 build itself** — all 14 work packages, on branch `phase-0-foundations`, **47 tests green** locally.
 
-**Not yet started:** any code; **owner ratification** of the [`DECISIONS.md`](docs/DECISIONS.md) defaults (some need counsel).
+**Phase 0 — built + locally validated (mypy strict + ruff + 47 pytest):**
+WP 0.1 monorepo scaffold + CI shell + Terraform skeleton · 0.2 multi-tenant RLS spine · 0.3 cross-tenant leak probe (SQL / pgvector-KNN / worker / PgBouncer) · 0.4 provenance spine (run tables + tall `score`) · 0.5 append-only hash-chained audit · 0.6 immutable versioned resume + object store · 0.7 PII envelope encryption + crypto-shred · 0.8 PII redaction (Presidio) · 0.9 multi-model router · 0.10 in-house auth (EdDSA JWT → RLS, TOTP) · 0.11 Arq + Redis ingestion worker · 0.12 OpenAPI drift gate · 0.13 observability (OTel / Sentry / flags) · 0.14 exit review.
 
-**Candidate next steps** (pick deliberately):
-- **Ratify or override the [`DECISIONS.md`](docs/DECISIONS.md) defaults** — flip each 🟡/⚖️ to 🟢/🔴. The PRD + Phase 0 spec assume the proposed defaults; the ⚖️ ones (D2, D3, D5, D7) need counsel before the design partner's real candidates onboard.
-- **Start the Phase 0 build** at work package **WP 0.1** ([`docs/PHASE_0.md` §17](docs/PHASE_0.md)) — repo scaffold + CI shell, then RLS spine (0.2) and the **cross-tenant leak probe** (0.3) early to de-risk isolation.
-- **Refine the PRD/Phase-0 spec** if scope or a ratified decision changes.
+**Exit criteria — all met locally:** ① leak probe green (CI gate wired) · ② 100% AI writes carry a run id (NOT-NULL FK + bare-insert rejection) · ③ p95 RLS query < 50ms (measured ≈0.1ms — `db/bench_rls_p95.py`) · ④ audit chain verifies unbroken · ⑤ walking skeleton (login → upload → stored immutably + audited). Invariants enforced + tested: **#2** provenance · **#3** RLS isolation · **#4** redaction-before-egress · **#5** append-only audit · **#11** PII-at-rest/crypto-shred.
+
+**Gated / not blockers:** owner ratification of [`DECISIONS.md`](docs/DECISIONS.md) ⚖️ items (D2/D3/D5/D7 — counsel) before real candidate PII; **cloud provisioning** (Neon/Vercel/AWS/KMS — local dev uses Postgres / Redis / filesystem / local-KEK stand-ins behind swappable interfaces); the CI gates are defined + YAML-valid but **unrun** (no GitHub remote yet).
+
+**Candidate next steps:** push `phase-0-foundations` to a remote so CI runs the gates; ratify the ⚖️ decisions with counsel; then begin **Phase 1** (explainable single-tenant screening loop, [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
 ## 16. Working Conventions for Claude
 

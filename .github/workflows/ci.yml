@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "phase-*", "phase-*/**"]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  js:
+    name: JS — typecheck · lint · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate API types from the OpenAPI contract
+        run: pnpm --filter @manfriday/contracts gen
+      - name: Contract drift — generated types must match the committed spec
+        run: git diff --exit-code -- packages/contracts/src/generated
+      - name: Build (generates Next types + type-checks web)
+        run: pnpm --filter @manfriday/web build
+      - run: pnpm -r --if-present typecheck
+      - run: pnpm -r --if-present lint
+
+  python:
+    name: Python — ruff · mypy · pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - name: Regenerate OpenAPI spec from FastAPI
+        run: uv run python -m app.openapi_export
+      - name: OpenAPI drift — committed spec must match FastAPI's emitted spec
+        run: git diff --exit-code -- packages/contracts/openapi.json
+      - name: Ruff (lint)
+        run: uv run ruff check .
+      - name: Ruff (format check)
+        run: uv run ruff format --check .
+      - name: mypy (strict)
+        run: uv run mypy
+      - name: pytest
+        run: uv run pytest
+
+  db-gates:
+    name: DB gates — RLS · leak probe · provenance · audit
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: manfriday_dev
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d manfriday_dev"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_ADMIN_URL: postgresql+psycopg://postgres@localhost:5432/manfriday_dev
+      DATABASE_URL: postgresql+psycopg://manfriday_app@localhost:5432/manfriday_dev
+      PGBOUNCER_DSN: host=127.0.0.1 port=6432 dbname=manfriday_dev user=manfriday_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - name: Apply migrations (as superuser)
+        run: uv run alembic -c services/api/alembic.ini upgrade head
+      - name: Install & start PgBouncer (transaction pooling on :6432)
+        run: |
+          sudo apt-get update && sudo apt-get install -y pgbouncer
+          sudo systemctl stop pgbouncer 2>/dev/null || sudo service pgbouncer stop 2>/dev/null || true
+          /usr/sbin/pgbouncer -d db/pgbouncer.dev.ini
+      - name: RLS · leak probe · provenance · audit (full suite vs a real DB)
+        run: uv run pytest -v
+
+  container:
+    name: Container — build api image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build FastAPI image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/api/Dockerfile
+          push: false
+          tags: manfriday-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,17 @@
+{
+  "name": "manfriday",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ManFriday — explainable, human-in-the-loop candidate screening. Monorepo root (JS/TS workspace).",
+  "packageManager": "pnpm@11.4.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "build": "pnpm -r --if-present build",
+    "test": "pnpm -r --if-present test",
+    "contracts:gen": "pnpm --filter @manfriday/contracts gen"
+  }
+}
