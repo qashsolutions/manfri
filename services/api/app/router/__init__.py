@@ -1,15 +1,41 @@
 """Multi-model router — the single LLM seam. No service calls a provider directly.
 
-Empty in WP 0.1. Filled by WP 0.9:
+**WP 0.9 (landed):** ``generate(input, schema, prompt_version, policy)`` runs the
+pipeline — mandatory redaction pre-hook (WP 0.8) -> per-sensitivity provider policy
+(ZDR/no-train, fail-closed) -> versioned prompt from ``packages/prompts`` ->
+backend call -> structured-output validation + one self-repair -> rehydrate ->
+content-hash cache -> ``generation_run`` provenance stamp + trace_id. Phase 0 is
+exercised by the echo task (no real provider). LiteLLM backs real calls in Phase 1.
 
-    generate(task, input, schema, policy) -> Result
-
-Pipeline: mandatory redaction pre-hook (WP 0.8) -> per-sensitivity provider
-policy (ZDR/no-training only for C2/C3) -> versioned prompt from
-``packages/prompts`` -> LiteLLM call -> structured-output validation + one
-self-repair -> content-hash response cache -> stamp model_id/prompt_version/
-input_hash into the relevant ``*_run`` row + emit a Langfuse trace.
-
-Invariant #4 (redaction before egress) and #2 (run-provenance on every AI write)
+Invariants #4 (redaction before egress) and #2 (run-provenance on every AI write)
 are enforced here.
 """
+
+from __future__ import annotations
+
+from app.router.backends import EchoBackend, LiteLLMBackend, ModelBackend
+from app.router.cache import ContentHashCache, content_hash
+from app.router.generate import OutputValidationError, Result, generate
+from app.router.policy import (
+    DEFAULT_REGISTRY,
+    NoCompliantProviderError,
+    Provider,
+    Sensitivity,
+    select_provider,
+)
+
+__all__ = [
+    "DEFAULT_REGISTRY",
+    "ContentHashCache",
+    "EchoBackend",
+    "LiteLLMBackend",
+    "ModelBackend",
+    "NoCompliantProviderError",
+    "OutputValidationError",
+    "Provider",
+    "Result",
+    "Sensitivity",
+    "content_hash",
+    "generate",
+    "select_provider",
+]
