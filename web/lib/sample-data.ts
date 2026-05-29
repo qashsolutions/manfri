@@ -141,13 +141,15 @@ export const reviewFlags: ReviewFlag[] = [
   { severity: "low", label: "Title scope unclear", detail: "“Staff” title at a 12-person company — verify scope during screening." },
 ];
 
-// ── Proposal history (cross-org — a candidate may belong to several orgs) ────
+// ── Proposal history (within this org — across its clients / requisitions) ───
+// Strictly org-scoped: this is where YOUR org proposed the candidate, never another
+// org's activity. Candidates are not shared across orgs.
 
 export type ProposalOutcome = "proposed" | "interviewing" | "rejected" | "hired";
 
 export interface Proposal {
   id: string;
-  org: string;
+  client: string;
   req: string;
   date: string;
   outcome: ProposalOutcome;
@@ -162,13 +164,10 @@ export const proposalOutcomeLabel: Record<ProposalOutcome, string> = {
 };
 
 export const proposalHistory: Proposal[] = [
-  { id: "p1", org: "Acme Staffing", req: "Senior Backend Engineer · Northwind Robotics", date: "2026-05-20", outcome: "interviewing" },
-  { id: "p2", org: "Bridge Talent", req: "Platform Engineer · Vertex Pay", date: "2026-03-11", outcome: "rejected", reason: "Comp expectations above the client's band" },
-  { id: "p3", org: "Acme Staffing", req: "Backend Engineer · Atlas Freight", date: "2025-12-02", outcome: "rejected", reason: "Client wanted on-site; candidate is remote-only" },
+  { id: "p1", client: "Northwind Robotics", req: "Senior Backend Engineer", date: "2026-05-20", outcome: "interviewing" },
+  { id: "p2", client: "Vertex Pay", req: "Platform Engineer", date: "2026-03-11", outcome: "rejected", reason: "Comp expectations above the client's band" },
+  { id: "p3", client: "Atlas Freight", req: "Backend Engineer", date: "2025-12-02", outcome: "rejected", reason: "Client wanted on-site; candidate is remote-only" },
 ];
-
-// A candidate can appear in more than one organization's pool (consent-gated).
-export const candidateOrgs = ["Acme Staffing", "Bridge Talent", "Northwind Robotics (direct)"];
 
 // ── Candidate detail (representative depth data for the mockup) ──────────────
 
