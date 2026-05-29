@@ -22,6 +22,7 @@ from app.redaction import redact, rehydrate
 from app.router.backends import EchoBackend, ModelBackend
 from app.router.cache import ContentHashCache, content_hash
 from app.router.policy import DEFAULT_REGISTRY, Provider, Sensitivity, select_provider
+from app.telemetry import current_trace_id
 
 _PROMPTS_ROOT = Path(__file__).resolve().parents[4] / "packages" / "prompts"
 _DEFAULT_CACHE = ContentHashCache()
@@ -133,7 +134,7 @@ async def generate(
         prompt_version=prompt_version,
         input_hash=input_hash,
     )
-    trace_id = str(uuid.uuid4())
+    trace_id = current_trace_id() or uuid.uuid4().hex
 
     result = Result(
         output=output,

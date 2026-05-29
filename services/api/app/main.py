@@ -17,12 +17,17 @@ from fastapi import Depends, FastAPI
 from pydantic import BaseModel
 
 from app.auth import AuthClaims, require_claims
+from app.telemetry import configure_tracing, init_sentry, instrument_fastapi
 
 app = FastAPI(
     title="ManFriday Internal API",
     version="0.0.0",
     description="Phase 0 foundations skeleton. No decision logic yet.",
 )
+
+configure_tracing()
+init_sentry()
+instrument_fastapi(app)
 
 
 class HealthStatus(BaseModel):
