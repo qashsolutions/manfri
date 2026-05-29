@@ -56,6 +56,42 @@ jobs:
       - name: pytest
         run: uv run pytest
 
+  leak-probe:
+    name: Leak probe — RLS · pgvector · worker · PgBouncer (Phase 0 gate)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: manfriday_dev
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d manfriday_dev"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_ADMIN_URL: postgresql+psycopg://postgres@localhost:5432/manfriday_dev
+      DATABASE_URL: postgresql+psycopg://manfriday_app@localhost:5432/manfriday_dev
+      PGBOUNCER_DSN: host=127.0.0.1 port=6432 dbname=manfriday_dev user=manfriday_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - name: Apply migrations (as superuser)
+        run: uv run alembic -c services/api/alembic.ini upgrade head
+      - name: Install & start PgBouncer (transaction pooling on :6432)
+        run: |
+          sudo apt-get update && sudo apt-get install -y pgbouncer
+          sudo systemctl stop pgbouncer 2>/dev/null || sudo service pgbouncer stop 2>/dev/null || true
+          /usr/sbin/pgbouncer -d db/pgbouncer.dev.ini
+      - name: Cross-tenant leak probe + RLS isolation
+        run: uv run pytest services/api/tests/test_leak_probe.py services/api/tests/test_rls_isolation.py -v
+
   container:
     name: Container — build api image
     runs-on: ubuntu-latest
