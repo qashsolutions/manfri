@@ -1,4 +1,4 @@
-"""ORM models for the Phase 0 tenancy & RLS spine (WP 0.2).
+"""ORM models for the Phase 0 tenancy & RLS spine (WP 0.2) and provenance spine (WP 0.4).
 
 Every tenant-scoped table carries ``org_id`` and is governed by Row-Level
 Security (invariant #3). ``role`` is intentionally a global lookup (same taxonomy
@@ -7,12 +7,16 @@ for all tenants), so it carries no ``org_id`` and no RLS policy.
 ``candidate`` and ``embedding`` are minimal shells here — just enough to
 establish the RLS + pgvector pattern and feed the WP 0.3 leak probe. Their full
 column sets and PII envelope encryption land in WP 0.6 / 0.7.
+
+The run tables + tall ``score`` enforce invariant #2: ``score.scoring_run_id`` is
+NOT NULL, so no AI score can be persisted without its provenance.
 """
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
@@ -22,6 +26,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    Numeric,
     Text,
     UniqueConstraint,
     text,
@@ -166,6 +171,96 @@ class Embedding(Base):
     model_id: Mapped[str] = mapped_column(Text)
     dim: Mapped[int] = mapped_column(Integer)
     vector: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class ParseRun(Base):
+    """Provenance for a JD parse — pins model + prompt + params + input hash (invariant #2)."""
+
+    __tablename__ = "parse_run"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    model_id: Mapped[str] = mapped_column(Text)
+    prompt_version: Mapped[str] = mapped_column(Text)
+    params: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    input_hash: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class ScoringRun(Base):
+    """Provenance for a scoring pass — pins model + prompt + weight_set + input hash."""
+
+    __tablename__ = "scoring_run"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    screen_session_id: Mapped[uuid.UUID | None] = mapped_column()
+    model_id: Mapped[str] = mapped_column(Text)
+    prompt_version: Mapped[str] = mapped_column(Text)
+    weight_set: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    input_snapshot_hash: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class GenerationRun(Base):
+    """Provenance for a generation (e.g., screening questions) — pins model + prompt + params."""
+
+    __tablename__ = "generation_run"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    model_id: Mapped[str] = mapped_column(Text)
+    prompt_version: Mapped[str] = mapped_column(Text)
+    params: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    input_hash: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class Score(Base):
+    """Tall score table — ONE row per parameter.
+
+    Enforces invariant #2: ``scoring_run_id`` is NOT NULL, so no AI score can be
+    persisted without its provenance. Populated in Phase 1.
+    """
+
+    __tablename__ = "score"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    scoring_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("scoring_run.id", ondelete="CASCADE"), index=True
+    )
+    screen_session_id: Mapped[uuid.UUID | None] = mapped_column()
+    parameter: Mapped[str] = mapped_column(Text)
+    value: Mapped[Decimal] = mapped_column(Numeric)
+    max_value: Mapped[Decimal] = mapped_column("max", Numeric)
+    rationale_text: Mapped[str | None] = mapped_column(Text)
+    evidence_refs: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )

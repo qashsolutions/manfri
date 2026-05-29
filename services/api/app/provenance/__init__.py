@@ -1,10 +1,23 @@
 """Run-provenance helpers — pin model + prompt + params + input hash on every AI write.
 
-Empty in WP 0.1. Filled by WP 0.4: helpers that create/return
-``parse_run`` / ``scoring_run`` / ``generation_run`` rows. The constraint
-``score.scoring_run_id NOT NULL REFERENCES scoring_run(id)`` (and analogues)
-makes provenance structural, not conventional — a bare INSERT without a run id
-must be rejected (verified by a CI gate).
-
-Invariant #2: regenerating the same run config reproduces the result.
+**WP 0.4 (landed):** ``parse_run`` / ``scoring_run`` / ``generation_run`` tables +
+the tall ``score`` table whose ``scoring_run_id`` is NOT NULL — a score cannot
+exist without its provenance (invariant #2), verified by a bare-insert-rejection
+test. The multi-model router (WP 0.9) is the production caller of these helpers.
 """
+
+from __future__ import annotations
+
+from app.provenance.runs import (
+    add_score,
+    create_generation_run,
+    create_parse_run,
+    create_scoring_run,
+)
+
+__all__ = [
+    "add_score",
+    "create_generation_run",
+    "create_parse_run",
+    "create_scoring_run",
+]

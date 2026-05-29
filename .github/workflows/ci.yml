@@ -89,8 +89,12 @@ jobs:
           sudo apt-get update && sudo apt-get install -y pgbouncer
           sudo systemctl stop pgbouncer 2>/dev/null || sudo service pgbouncer stop 2>/dev/null || true
           /usr/sbin/pgbouncer -d db/pgbouncer.dev.ini
-      - name: Cross-tenant leak probe + RLS isolation
-        run: uv run pytest services/api/tests/test_leak_probe.py services/api/tests/test_rls_isolation.py -v
+      - name: Cross-tenant leak probe + provenance + RLS isolation
+        run: >-
+          uv run pytest -v
+          services/api/tests/test_leak_probe.py
+          services/api/tests/test_rls_isolation.py
+          services/api/tests/test_provenance.py
 
   container:
     name: Container — build api image
