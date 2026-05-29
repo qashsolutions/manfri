@@ -18,14 +18,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  audience,
   type CampaignStatus,
   campaignStatusLabel,
-  campaigns,
-  emailTemplates,
+  getAudience,
+  getEmailTemplates,
+  getOutreachStats,
+  listCampaigns,
   mergeFields,
-  outreachStats,
-} from "@/lib/sample-data";
+} from "@/lib/data";
 
 const STATUS_VARIANT = {
   sent: "success",
@@ -33,15 +33,7 @@ const STATUS_VARIANT = {
   draft: "secondary",
 } as const satisfies Record<CampaignStatus, "success" | "warning" | "secondary">;
 
-const STAT_CARDS = [
-  { label: "Emails sent (30d)", value: outreachStats.sent30d.toLocaleString(), icon: Send },
-  { label: "Avg open rate", value: outreachStats.avgOpenRate, icon: Eye },
-  { label: "Avg reply rate", value: outreachStats.avgReplyRate, icon: Reply },
-  { label: "Unsubscribes (30d)", value: String(outreachStats.unsubscribes30d), icon: ShieldCheck },
-];
-
 const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground";
-const pct = (n: number) => Math.round((n / audience.total) * 100);
 const rate = (r: number) => `${Math.round(r * 100)}%`;
 
 const DEFAULT_BODY = `Hi {{first_name}},
@@ -53,7 +45,23 @@ Open to a quick chat this week?
 Best,
 {{recruiter_name}}`;
 
-export default function OutreachPage() {
+export default async function OutreachPage() {
+  const [campaigns, emailTemplates, audience, outreachStats] = await Promise.all([
+    listCampaigns(),
+    getEmailTemplates(),
+    getAudience(),
+    getOutreachStats(),
+  ]);
+
+  const pct = (n: number) => Math.round((n / audience.total) * 100);
+
+  const STAT_CARDS = [
+    { label: "Emails sent (30d)", value: outreachStats.sent30d.toLocaleString(), icon: Send },
+    { label: "Avg open rate", value: outreachStats.avgOpenRate, icon: Eye },
+    { label: "Avg reply rate", value: outreachStats.avgReplyRate, icon: Reply },
+    { label: "Unsubscribes (30d)", value: String(outreachStats.unsubscribes30d), icon: ShieldCheck },
+  ];
+
   return (
     <AppShell active="outreach" title="Outreach">
       <div className="mx-auto max-w-6xl space-y-6">

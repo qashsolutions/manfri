@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { type CandidateStatus, candidates, statusLabel, stats } from "@/lib/sample-data";
+import { type CandidateStatus, getStats, listCandidates, statusLabel } from "@/lib/data";
 
 const STATUS_VARIANT = {
   new: "secondary",
@@ -24,7 +24,9 @@ function initials(name: string) {
 
 const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground";
 
-export default function CandidatesPage() {
+export default async function CandidatesPage() {
+  const [candidates, stats] = await Promise.all([listCandidates(), getStats()]);
+
   return (
     <AppShell active="candidates" title="Candidates">
       <div className="space-y-4">

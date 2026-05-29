@@ -14,7 +14,7 @@ import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { type ImportStatus, importQueue, importStatusLabel } from "@/lib/sample-data";
+import { getImportQueue, type ImportStatus, importStatusLabel } from "@/lib/data";
 
 const STATUS_VARIANT = {
   queued: "secondary",
@@ -34,7 +34,8 @@ const STATUS_ICON = {
 
 const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground";
 
-export default function ImportPage() {
+export default async function ImportPage() {
+  const importQueue = await getImportQueue();
   const done = importQueue.filter((i) => i.status === "done").length;
   const inFlight = importQueue.filter((i) => i.status === "parsing" || i.status === "encrypting").length;
   const review = importQueue.filter((i) => i.status === "review").length;

@@ -22,14 +22,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
-  getCandidate,
-  jdCompleteness,
-  jdSkills,
+  getJdCompleteness,
+  getJdSkills,
+  getRequisition,
+  getTopMatches,
   type ReqStatus,
   reqStatusLabel,
-  requisitions,
-  topMatches,
-} from "@/lib/sample-data";
+} from "@/lib/data";
 
 const REQ_STATUS_VARIANT = {
   open: "success",
@@ -51,8 +50,14 @@ export default async function RequisitionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const req = requisitions.find((r) => r.id === id);
+  const req = await getRequisition(id);
   if (!req) notFound();
+
+  const [jdSkills, jdCompleteness, matches] = await Promise.all([
+    getJdSkills(id),
+    getJdCompleteness(id),
+    getTopMatches(id),
+  ]);
 
   const core = jdSkills.filter((s) => s.tier === "core");
   const nice = jdSkills.filter((s) => s.tier === "nice");
@@ -175,9 +180,8 @@ export default async function RequisitionDetailPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {topMatches.map((m, i) => {
-                    const c = getCandidate(m.candidateId);
-                    if (!c) return null;
+                  {matches.map((m, i) => {
+                    const c = m.candidate;
                     return (
                       <tr key={m.candidateId} className="transition-colors hover:bg-accent/40">
                         <td className="px-4 py-3">
@@ -187,10 +191,7 @@ export default async function RequisitionDetailPage({
                             </span>
                             <Avatar name={c.name} className="size-8 text-xs" />
                             <div className="min-w-0">
-                              <Link
-                                href="/screening"
-                                className="font-medium hover:underline"
-                              >
+                              <Link href="/screening" className="font-medium hover:underline">
                                 {c.name}
                               </Link>
                               <p className="truncate text-xs text-muted-foreground">{c.title}</p>

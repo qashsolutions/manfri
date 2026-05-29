@@ -5,7 +5,13 @@ import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { type CandidateStatus, candidates, requisitions, statusLabel, stats } from "@/lib/sample-data";
+import {
+  type CandidateStatus,
+  getStats,
+  listCandidates,
+  listRequisitions,
+  statusLabel,
+} from "@/lib/data";
 
 const STATUS_VARIANT = {
   new: "secondary",
@@ -14,13 +20,6 @@ const STATUS_VARIANT = {
   submitted: "success",
 } as const satisfies Record<CandidateStatus, "secondary" | "default" | "warning" | "success">;
 
-const STAT_CARDS = [
-  { label: "Candidates", value: stats.candidates.toLocaleString(), delta: "+128 this month", icon: Users },
-  { label: "Active requisitions", value: String(stats.activeReqs), delta: "3 closing soon", icon: Briefcase },
-  { label: "Emails sent (30d)", value: stats.emailsSent30d.toLocaleString(), delta: "+18% vs prev", icon: Mail },
-  { label: "Response rate", value: stats.responseRate, delta: "+4 pts", icon: TrendingUp },
-];
-
 function initials(name: string) {
   return name
     .split(" ")
@@ -28,7 +27,20 @@ function initials(name: string) {
     .join("");
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const [stats, candidates, requisitions] = await Promise.all([
+    getStats(),
+    listCandidates(),
+    listRequisitions(),
+  ]);
+
+  const STAT_CARDS = [
+    { label: "Candidates", value: stats.candidates.toLocaleString(), delta: "+128 this month", icon: Users },
+    { label: "Active requisitions", value: String(stats.activeReqs), delta: "3 closing soon", icon: Briefcase },
+    { label: "Emails sent (30d)", value: stats.emailsSent30d.toLocaleString(), delta: "+18% vs prev", icon: Mail },
+    { label: "Response rate", value: stats.responseRate, delta: "+4 pts", icon: TrendingUp },
+  ];
+
   return (
     <AppShell active="dashboard" title="Dashboard">
       <div className="mx-auto max-w-6xl space-y-6">

@@ -8,11 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import {
-  type FlagSeverity,
-  matchDetail,
-  type ScreeningQuestion,
-} from "@/lib/sample-data";
+import { type FlagSeverity, getMatchDetail, type ScreeningQuestion } from "@/lib/data";
 
 const TIER_VARIANT = {
   Simple: "secondary",
@@ -32,8 +28,8 @@ const TRIAGE = [
   { label: "Red", dot: "bg-destructive" },
 ];
 
-export default function MatchDetailPage() {
-  const m = matchDetail;
+export default async function MatchDetailPage() {
+  const m = await getMatchDetail();
   const composite = Math.round(m.subScores.reduce((a, x) => a + x.weight * x.score, 0));
 
   return (
@@ -53,7 +49,10 @@ export default function MatchDetailPage() {
             <div className="flex items-center gap-4">
               <Avatar name={m.candidate} className="size-12 text-base" />
               <div>
-                <Link href={`/candidates/${m.candidateId}`} className="text-lg font-semibold tracking-tight hover:underline">
+                <Link
+                  href={`/candidates/${m.candidateId}`}
+                  className="text-lg font-semibold tracking-tight hover:underline"
+                >
                   {m.candidate}
                 </Link>
                 <p className="text-sm text-muted-foreground">matched against {m.req}</p>

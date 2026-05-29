@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type ReqStatus, reqStatusLabel, requisitions } from "@/lib/sample-data";
+import { listRequisitions, type ReqStatus, reqStatusLabel } from "@/lib/data";
 
 const STATUS_VARIANT = {
   open: "success",
@@ -52,7 +52,8 @@ function FauxSelect({ value }: { value: string }) {
   );
 }
 
-export default function RequisitionsPage() {
+export default async function RequisitionsPage() {
+  const requisitions = await listRequisitions();
   const openCount = requisitions.filter((r) => r.status === "open").length;
 
   return (

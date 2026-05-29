@@ -25,17 +25,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   type ActivityType,
-  candidateDetail,
-  candidateOrgs,
   type CandidateStatus,
   type FlagSeverity,
   getCandidate,
+  getCandidateDetail,
+  getCandidateOrgs,
+  getProposalHistory,
+  getReviewFlags,
   type ProposalOutcome,
-  proposalHistory,
   proposalOutcomeLabel,
-  reviewFlags,
   statusLabel,
-} from "@/lib/sample-data";
+} from "@/lib/data";
 
 const STATUS_VARIANT = {
   new: "secondary",
@@ -80,9 +80,15 @@ export default async function CandidateDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const candidate = getCandidate(id);
+  const candidate = await getCandidate(id);
   if (!candidate) notFound();
-  const d = candidateDetail;
+
+  const [d, reviewFlags, proposalHistory, candidateOrgs] = await Promise.all([
+    getCandidateDetail(id),
+    getReviewFlags(id),
+    getProposalHistory(id),
+    getCandidateOrgs(id),
+  ]);
 
   return (
     <AppShell active="candidates" title="Candidate">

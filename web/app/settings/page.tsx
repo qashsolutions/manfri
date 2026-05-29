@@ -5,12 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  type MemberStatus,
-  plan,
-  type TeamRole,
-  teamMembers,
-} from "@/lib/sample-data";
+import { getPlan, listTeamMembers, type MemberStatus, type TeamRole } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 const ROLE_VARIANT = {
@@ -57,7 +52,8 @@ function Switch({ on }: { on: boolean }) {
   );
 }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const [plan, teamMembers] = await Promise.all([getPlan(), listTeamMembers()]);
   const seatPct = Math.round((plan.seatsUsed / plan.seatsTotal) * 100);
 
   return (

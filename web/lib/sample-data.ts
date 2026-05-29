@@ -34,10 +34,6 @@ export const statusLabel: Record<CandidateStatus, string> = {
   submitted: "Submitted",
 };
 
-export function getCandidate(id: string): Candidate | undefined {
-  return candidates.find((c) => c.id === id);
-}
-
 // ── Requisitions ────────────────────────────────────────────────────────────
 
 export type ReqStatus = "open" | "on_hold" | "filled";
@@ -393,3 +389,13 @@ export const matchDetail = {
     { tier: "Hard", q: "Design exactly-once processing across a partitioned queue. Trade-offs?" },
   ] as ScreeningQuestion[],
 };
+
+// ── Derived read-model types (consumed by the data-access contract) ──────────
+// These name the shapes returned by lib/data so the mock and api providers
+// can't drift. They are inferred from the mock values for zero maintenance.
+export type Stats = typeof stats;
+export type Plan = typeof plan;
+export type Audience = typeof audience;
+export type OutreachStats = typeof outreachStats;
+export type JdCompleteness = typeof jdCompleteness;
+export type MatchDetail = typeof matchDetail;
