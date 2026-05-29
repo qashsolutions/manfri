@@ -2,12 +2,14 @@ import {
   ArrowLeft,
   Briefcase,
   Building2,
-  Lock,
+  CheckCircle2,
+  GripVertical,
+  Mail,
   MapPin,
   Pencil,
   Search,
-  Sparkles,
-  Users,
+  TriangleAlert,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -17,14 +19,16 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
-  type CandidateStatus,
-  candidates,
+  getCandidate,
+  jdCompleteness,
+  jdSkills,
   type ReqStatus,
   reqStatusLabel,
   requisitions,
-  statusLabel,
+  topMatches,
 } from "@/lib/sample-data";
 
 const REQ_STATUS_VARIANT = {
@@ -33,15 +37,13 @@ const REQ_STATUS_VARIANT = {
   filled: "secondary",
 } as const satisfies Record<ReqStatus, "success" | "warning" | "secondary">;
 
-const STATUS_VARIANT = {
-  new: "secondary",
-  contacted: "default",
-  screening: "warning",
-  submitted: "success",
-} as const satisfies Record<CandidateStatus, "secondary" | "default" | "warning" | "success">;
+const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground";
 
-const JD_CORE = ["Python", "PostgreSQL", "Distributed systems", "7+ yrs backend"];
-const JD_NICE = ["Kafka", "Go", "Terraform", "Payments domain"];
+function fitTone(fit: number) {
+  if (fit >= 85) return "text-success";
+  if (fit >= 70) return "text-foreground";
+  return "text-muted-foreground";
+}
 
 export default async function RequisitionDetailPage({
   params,
@@ -52,7 +54,9 @@ export default async function RequisitionDetailPage({
   const req = requisitions.find((r) => r.id === id);
   if (!req) notFound();
 
-  const pipeline = candidates.slice(0, 5);
+  const core = jdSkills.filter((s) => s.tier === "core");
+  const nice = jdSkills.filter((s) => s.tier === "nice");
+  const missing = jdCompleteness.items.filter((i) => !i.present);
 
   return (
     <AppShell active="requisitions" title="Requisition">
@@ -89,9 +93,11 @@ export default async function RequisitionDetailPage({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm">
-                <Search className="size-4" />
-                Source candidates
+              <Button size="sm" asChild>
+                <Link href="/outreach">
+                  <Mail className="size-4" />
+                  Email matches
+                </Link>
               </Button>
               <Button size="sm" variant="outline">
                 <Pencil className="size-4" />
@@ -102,88 +108,186 @@ export default async function RequisitionDetailPage({
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Pipeline */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex-row items-center justify-between">
-              <div>
-                <CardTitle>Pipeline</CardTitle>
-                <p className="text-sm text-muted-foreground">{req.inPipeline} candidates</p>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/candidates">View all</Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {pipeline.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/candidates/${c.id}`}
-                  className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent/50"
-                >
-                  <Avatar name={c.name} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{c.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{c.title}</p>
+          <div className="space-y-6 lg:col-span-2">
+            {/* Required skills (weighted, reorderable) */}
+            <Card>
+              <CardHeader className="flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Required skills</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Drag to reprioritize — weighting drives how candidates are matched.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm">
+                  Re-run matches
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {[
+                  { label: "Core", items: core },
+                  { label: "Nice to have", items: nice },
+                ].map((group) => (
+                  <div key={group.label} className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      {group.label}
+                    </p>
+                    {group.items.map((s) => (
+                      <div key={s.name} className="flex items-center gap-3">
+                        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/50" />
+                        <span className="w-40 shrink-0 truncate text-sm font-medium">{s.name}</span>
+                        <Progress
+                          value={s.weight * 100}
+                          indicatorClassName={group.label === "Core" ? "bg-primary" : "bg-muted-foreground/40"}
+                        />
+                        <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                          {Math.round(s.weight * 100)}%
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <Badge variant={STATUS_VARIANT[c.status]}>{statusLabel[c.status]}</Badge>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Top matches */}
+            <Card className="overflow-hidden p-0">
+              <CardHeader className="flex-row items-center justify-between p-6">
+                <div>
+                  <CardTitle>Top matches</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Best-fit candidates from your database, ranked
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/outreach">
+                    <Mail className="size-4" />
+                    Email all
+                  </Link>
+                </Button>
+              </CardHeader>
+              <table className="w-full border-collapse text-sm">
+                <thead className="border-y border-border bg-muted/40">
+                  <tr>
+                    <th className={TH}>Candidate</th>
+                    <th className={TH}>Core</th>
+                    <th className={TH}>Review</th>
+                    <th className={TH}>Fit</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {topMatches.map((m, i) => {
+                    const c = getCandidate(m.candidateId);
+                    if (!c) return null;
+                    return (
+                      <tr key={m.candidateId} className="transition-colors hover:bg-accent/40">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <span className="w-4 text-xs tabular-nums text-muted-foreground">
+                              {i + 1}
+                            </span>
+                            <Avatar name={c.name} className="size-8 text-xs" />
+                            <div className="min-w-0">
+                              <Link
+                                href="/screening"
+                                className="font-medium hover:underline"
+                              >
+                                {c.name}
+                              </Link>
+                              <p className="truncate text-xs text-muted-foreground">{c.title}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                          {m.coreCovered}/{m.coreTotal}
+                        </td>
+                        <td className="px-4 py-3">
+                          {m.flags > 0 ? (
+                            <Badge variant="warning">
+                              <TriangleAlert className="size-3" />
+                              {m.flags}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">None</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-base font-semibold tabular-nums ${fitTone(m.fit)}`}>
+                            {m.fit}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="border-t border-border px-6 py-3 text-xs text-muted-foreground">
+                Fit is a transparent composite of evidence-backed sub-scores. Review-area flags are
+                advisory and never affect fit or reject a candidate — a person decides.
+              </p>
+            </Card>
+          </div>
 
           <div className="space-y-6">
-            {/* JD + skills */}
+            {/* JD completeness */}
+            <Card>
+              <CardHeader>
+                <CardTitle>JD completeness</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-end justify-between">
+                  <span className="text-3xl font-semibold tracking-tight">
+                    {jdCompleteness.score}
+                    <span className="text-base text-muted-foreground">/100</span>
+                  </span>
+                  {missing.length > 0 && (
+                    <Badge variant="warning">{missing.length} to improve</Badge>
+                  )}
+                </div>
+                <Progress value={jdCompleteness.score} />
+                <Separator />
+                <ul className="space-y-2">
+                  {jdCompleteness.items.map((item) => (
+                    <li key={item.label} className="flex items-start gap-2 text-sm">
+                      {item.present ? (
+                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+                      ) : (
+                        <XCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
+                      )}
+                      <span className={item.present ? "" : "text-muted-foreground"}>
+                        {item.label}
+                        {item.hint && (
+                          <span className="block text-xs text-muted-foreground">{item.hint}</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* JD source */}
             <Card>
               <CardHeader>
                 <CardTitle>Job description</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    CORE skills
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {JD_CORE.map((s) => (
-                      <Badge key={s}>{s}</Badge>
-                    ))}
-                  </div>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">In pipeline</span>
+                  <span className="font-medium tabular-nums">{req.inPipeline}</span>
                 </div>
-                <div>
-                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Nice to have
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {JD_NICE.map((s) => (
-                      <Badge key={s} variant="outline">
-                        {s}
-                      </Badge>
-                    ))}
-                  </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Posted</span>
+                  <span className="font-medium">{req.postedAt}</span>
                 </div>
                 <Separator />
-                <p className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                  These were tagged manually. <span className="font-medium">AI extraction</span>{" "}
-                  (weighted CORE/NICE with evidence spans) is a premium feature.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Premium teaser */}
-            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/40">
-              <CardContent className="space-y-3 p-5">
-                <div className="flex items-center gap-2">
-                  <Users className="size-4 text-primary" />
-                  <span className="font-semibold">Match the pipeline</span>
-                  <Lock className="ml-auto size-3.5 text-muted-foreground" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Rank every candidate against this req with transparent, evidence-backed fitment
-                  scores — human-decided, never auto-rejected.
-                </p>
-                <Button variant="outline" size="sm" className="w-full" asChild>
-                  <Link href="/screening">See AI screening</Link>
+                <Button variant="outline" size="sm" className="w-full">
+                  <Search className="size-4" />
+                  Find more matches
                 </Button>
+                <p className="text-xs text-muted-foreground">
+                  The JD is stored as an immutable, versioned record; a match always pins the exact
+                  version it scored against.
+                </p>
               </CardContent>
             </Card>
           </div>

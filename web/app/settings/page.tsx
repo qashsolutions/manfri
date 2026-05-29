@@ -1,4 +1,4 @@
-import { CreditCard, Send, ShieldCheck, Sparkles, UserPlus, Users } from "lucide-react";
+import { CreditCard, Send, ShieldCheck, UserPlus, Users } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +34,7 @@ const COMPLIANCE = [
   { label: "Require candidate consent before outreach", detail: "Only opted-in candidates are emailable", on: true },
   { label: "Append CAN-SPAM footer to every send", detail: "Unsubscribe link + verified sender identity", on: true },
   { label: "Immutable audit log", detail: "Append-only, hash-chained decision record", on: true },
-  { label: "Demographic data collection", detail: "Voluntary self-ID, segregated from scoring (premium)", on: false },
+  { label: "Demographic data collection", detail: "Voluntary self-ID, segregated from scoring", on: false },
 ];
 
 const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground";
@@ -98,12 +98,9 @@ export default function SettingsPage() {
             <CardContent className="space-y-5">
               <div className="flex items-center justify-between rounded-lg border border-border p-4">
                 <div>
-                  <p className="flex items-center gap-2 font-semibold">
-                    {plan.name}
-                    <Badge variant="secondary">Wedge tier</Badge>
-                  </p>
+                  <p className="font-semibold">{plan.name} plan</p>
                   <p className="text-sm text-muted-foreground">
-                    Résumé database + compliant outreach
+                    Résumé database, matching &amp; compliant outreach
                   </p>
                 </div>
                 <div className="text-right">
@@ -122,21 +119,6 @@ export default function SettingsPage() {
                 <Progress value={seatPct} />
                 <p className="text-xs text-muted-foreground">Renews {plan.renews}</p>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Premium upsell */}
-          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/40">
-            <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
-              <Sparkles className="size-5 text-primary" />
-              <div className="flex-1">
-                <p className="font-semibold">Add explainable AI screening</p>
-                <p className="text-sm text-muted-foreground">
-                  CORE/NICE extraction, evidence-backed fitment, and tiered questions — human-decided
-                  and auditable.
-                </p>
-              </div>
-              <Button size="sm">Upgrade</Button>
             </CardContent>
           </Card>
 

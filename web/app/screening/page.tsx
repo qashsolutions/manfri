@@ -1,12 +1,18 @@
-import { Check, FileText, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, FileText, ShieldCheck, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 
 import { AppShell } from "@/components/app-shell";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { type ScreeningQuestion, premiumSample } from "@/lib/sample-data";
+import {
+  type FlagSeverity,
+  matchDetail,
+  type ScreeningQuestion,
+} from "@/lib/sample-data";
 
 const TIER_VARIANT = {
   Simple: "secondary",
@@ -14,65 +20,64 @@ const TIER_VARIANT = {
   Hard: "warning",
 } as const satisfies Record<ScreeningQuestion["tier"], "secondary" | "default" | "warning">;
 
+const SEVERITY_VARIANT = {
+  high: "destructive",
+  medium: "warning",
+  low: "secondary",
+} as const satisfies Record<FlagSeverity, "destructive" | "warning" | "secondary">;
+
 const TRIAGE = [
   { label: "Green", dot: "bg-success" },
   { label: "Amber", dot: "bg-warning" },
   { label: "Red", dot: "bg-destructive" },
 ];
 
-export default function ScreeningPage() {
-  const s = premiumSample;
-  const composite = Math.round(s.subScores.reduce((a, x) => a + x.weight * x.score, 0));
+export default function MatchDetailPage() {
+  const m = matchDetail;
+  const composite = Math.round(m.subScores.reduce((a, x) => a + x.weight * x.score, 0));
 
   return (
-    <AppShell active="screening" title="AI Screening">
+    <AppShell active="requisitions" title="Candidate fit">
       <div className="mx-auto max-w-5xl space-y-6">
-        {/* Preview banner */}
-        <div className="flex flex-col items-start gap-4 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-accent/40 p-5 sm:flex-row sm:items-center">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Sparkles className="size-5" />
-          </div>
-          <div className="flex-1">
-            <p className="flex items-center gap-2 font-semibold">
-              Explainable AI screening
-              <Badge variant="outline">
-                <Lock className="size-3" />
-                Premium preview
-              </Badge>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              A sample of what premium adds. Every number traces to evidence; a human always decides.
-            </p>
-          </div>
-          <Button>Upgrade to enable</Button>
-        </div>
+        <Link
+          href={`/requisitions/${m.reqId}`}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Back to requisition
+        </Link>
 
-        {/* Sample candidate header */}
+        {/* Candidate × req header */}
         <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
-            <div>
-              <p className="text-sm text-muted-foreground">Sample · {s.req}</p>
-              <h2 className="text-lg font-semibold tracking-tight">{s.candidate}</h2>
+            <div className="flex items-center gap-4">
+              <Avatar name={m.candidate} className="size-12 text-base" />
+              <div>
+                <Link href={`/candidates/${m.candidateId}`} className="text-lg font-semibold tracking-tight hover:underline">
+                  {m.candidate}
+                </Link>
+                <p className="text-sm text-muted-foreground">matched against {m.req}</p>
+              </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Suggested fitment</p>
+              <p className="text-xs text-muted-foreground">Fit score</p>
               <p className="text-3xl font-semibold tracking-tight">{composite}</p>
-              <p className="text-xs text-muted-foreground">for recruiter review</p>
+              <p className="text-xs text-muted-foreground">for your review</p>
             </div>
           </CardContent>
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Sub-scores */}
+          {/* Fit breakdown */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Fitment breakdown</CardTitle>
+              <CardTitle>Fit breakdown</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Transparent weighted sum of evidence-backed sub-scores — no black box.
+                A transparent weighted sum — every factor shown with its evidence.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {s.subScores.map((x) => (
+              {m.subScores.map((x) => (
                 <div key={x.label} className="space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">
@@ -99,10 +104,10 @@ export default function ScreeningPage() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    CORE
+                    Core
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {s.coreSkills.map((k) => (
+                    {m.coreSkills.map((k) => (
                       <Badge key={k}>
                         <Check className="size-3" />
                         {k}
@@ -115,7 +120,7 @@ export default function ScreeningPage() {
                     Nice to have
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {s.niceSkills.map((k) => (
+                    {m.niceSkills.map((k) => (
                       <Badge key={k} variant="outline">
                         {k}
                       </Badge>
@@ -144,24 +149,52 @@ export default function ScreeningPage() {
                 </div>
                 <p className="flex items-start gap-2 text-xs text-muted-foreground">
                   <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-success" />
-                  The AI never pre-selects or auto-rejects. A human sets the decision with a reason
-                  code — and it&apos;s recorded in the audit log.
+                  ManFriday never pre-selects or rejects a candidate. You set the decision with a
+                  reason code, and it&apos;s written to the audit log.
                 </p>
               </CardContent>
             </Card>
           </div>
         </div>
 
+        {/* Review areas — advisory, separate from fit */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Review areas</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Advisory signals to check during screening — never folded into the fit score, never an
+              automatic reject.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {m.reviewFlags.map((f) => (
+              <div
+                key={f.label}
+                className="flex items-start gap-3 rounded-lg border border-border p-3"
+              >
+                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    {f.label}
+                    <Badge variant={SEVERITY_VARIANT[f.severity]}>{f.severity}</Badge>
+                  </p>
+                  <p className="text-sm text-muted-foreground">{f.detail}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
         {/* Screening questions */}
         <Card>
           <CardHeader>
             <CardTitle>Screening questions</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Tiered, grounded in the JD and résumé — generated with model answer keys.
+              Tiered and grounded in the JD and résumé, with model answer keys.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
-            {s.questions.map((q, i) => (
+            {m.questions.map((q, i) => (
               <div key={q.tier}>
                 {i > 0 && <Separator className="mb-3" />}
                 <div className="flex items-start gap-3">
@@ -169,13 +202,13 @@ export default function ScreeningPage() {
                     {q.tier}
                   </Badge>
                   <p className="flex-1 text-sm">{q.q}</p>
-                  <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <Button variant="ghost" size="sm" className="shrink-0">
+                    <FileText className="size-4" />
+                    Answer key
+                  </Button>
                 </div>
               </div>
             ))}
-            <p className="pt-1 text-xs text-muted-foreground">
-              Model answer keys are unlocked on the premium tier.
-            </p>
           </CardContent>
         </Card>
       </div>

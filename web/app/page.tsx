@@ -110,14 +110,17 @@ export default function DashboardPage() {
         <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/40">
           <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
             <div className="flex-1">
-              <p className="font-semibold">Unlock explainable AI screening</p>
+              <p className="font-semibold">3 requisitions have new matches ready</p>
               <p className="text-sm text-muted-foreground">
-                CORE/NICE skill extraction, evidence-backed fitment scores, and tiered screening
-                questions — every output auditable and human-decided. Premium tier.
+                Upload a job description and ManFriday ranks the best-fit candidates from your
+                database — every match evidence-backed and human-decided.
               </p>
             </div>
             <Button asChild>
-              <Link href="/screening">Explore premium</Link>
+              <Link href="/requisitions">
+                Review matches
+                <ArrowUpRight className="size-4" />
+              </Link>
             </Button>
           </CardContent>
         </Card>

@@ -4,9 +4,9 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ManFriday — Compliant Talent CRM",
+  title: "ManFriday — Talent matching & outreach",
   description:
-    "Resume database + compliant candidate outreach, with explainable AI screening as a premium tier.",
+    "Résumé database, job-description matching, and compliant candidate outreach — evidence-backed and human-decided.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

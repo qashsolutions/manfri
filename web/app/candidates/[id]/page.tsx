@@ -1,17 +1,18 @@
 import {
   ArrowLeft,
+  Building2,
   CheckCircle2,
   Download,
   FileText,
-  Lock,
   Mail,
   MapPin,
   MessageSquare,
   Pencil,
-  Plus,
   ShieldCheck,
-  Sparkles,
+  Target,
+  TriangleAlert,
   Upload,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,9 +25,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   type ActivityType,
-  type CandidateStatus,
   candidateDetail,
+  candidateOrgs,
+  type CandidateStatus,
+  type FlagSeverity,
   getCandidate,
+  type ProposalOutcome,
+  proposalHistory,
+  proposalOutcomeLabel,
+  reviewFlags,
   statusLabel,
 } from "@/lib/sample-data";
 
@@ -44,6 +51,19 @@ const ACTIVITY_ICON = {
   note: MessageSquare,
   consent: ShieldCheck,
 } as const satisfies Record<ActivityType, typeof Mail>;
+
+const SEVERITY_VARIANT = {
+  high: "destructive",
+  medium: "warning",
+  low: "secondary",
+} as const satisfies Record<FlagSeverity, "destructive" | "warning" | "secondary">;
+
+const OUTCOME_VARIANT = {
+  proposed: "default",
+  interviewing: "warning",
+  rejected: "secondary",
+  hired: "success",
+} as const satisfies Record<ProposalOutcome, "default" | "warning" | "secondary" | "success">;
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -90,6 +110,12 @@ export default async function CandidateDetailPage({
                 ) : (
                   <Badge variant="outline">Consent pending</Badge>
                 )}
+                {candidateOrgs.length > 1 && (
+                  <Badge variant="outline">
+                    <Building2 className="size-3" />
+                    In {candidateOrgs.length} organizations
+                  </Badge>
+                )}
               </div>
               <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
                 {candidate.title}
@@ -105,9 +131,11 @@ export default async function CandidateDetailPage({
                   Email
                 </Link>
               </Button>
-              <Button size="sm" variant="outline">
-                <Plus className="size-4" />
-                Add to req
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/screening">
+                  <Target className="size-4" />
+                  Match to req
+                </Link>
               </Button>
               <Button size="sm" variant="outline">
                 <Pencil className="size-4" />
@@ -147,6 +175,68 @@ export default async function CandidateDetailPage({
               </CardContent>
             </Card>
 
+            {/* Review areas (advisory) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Review areas</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Advisory signals to verify — they never reject a candidate; a person decides.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {reviewFlags.map((f) => (
+                  <div
+                    key={f.label}
+                    className="flex items-start gap-3 rounded-lg border border-border p-3"
+                  >
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-2 text-sm font-medium">
+                        {f.label}
+                        <Badge variant={SEVERITY_VARIANT[f.severity]}>{f.severity}</Badge>
+                      </p>
+                      <p className="text-sm text-muted-foreground">{f.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Proposal history (cross-org) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Proposal history</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Where this candidate was proposed, when, and why — across organizations.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <ol className="space-y-4">
+                  {proposalHistory.map((p) => (
+                    <li key={p.id} className="flex gap-3">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                        <Building2 className="size-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                          {p.req}
+                          <Badge variant={OUTCOME_VARIANT[p.outcome]}>
+                            {proposalOutcomeLabel[p.outcome]}
+                          </Badge>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {p.org} · {p.date}
+                        </p>
+                        {p.reason && (
+                          <p className="mt-0.5 text-sm text-muted-foreground">Reason: {p.reason}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+
             {/* Activity */}
             <Card>
               <CardHeader>
@@ -176,6 +266,28 @@ export default async function CandidateDetailPage({
           </div>
 
           <div className="space-y-6">
+            {/* Organizations (multi-org membership) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Organizations</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ul className="space-y-2">
+                  {candidateOrgs.map((org) => (
+                    <li key={org} className="flex items-center gap-2 text-sm">
+                      <Users className="size-4 text-muted-foreground" />
+                      {org}
+                    </li>
+                  ))}
+                </ul>
+                <Separator />
+                <p className="text-xs text-muted-foreground">
+                  This candidate is in more than one pool. Each org only sees its own notes,
+                  proposals, and activity — sharing is consent-gated and access is RLS-scoped.
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Résumé versions */}
             <Card>
               <CardHeader>
@@ -239,24 +351,6 @@ export default async function CandidateDetailPage({
                   Stored encrypted with a per-tenant key. Access is RLS-scoped and every read/write
                   is written to the audit log.
                 </p>
-              </CardContent>
-            </Card>
-
-            {/* Premium teaser */}
-            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/40">
-              <CardContent className="space-y-3 p-5">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-primary" />
-                  <span className="font-semibold">Screen this candidate</span>
-                  <Lock className="ml-auto size-3.5 text-muted-foreground" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Evidence-backed fitment against any req, plus tiered screening questions — every
-                  output auditable and human-decided.
-                </p>
-                <Button variant="outline" size="sm" className="w-full" asChild>
-                  <Link href="/screening">See AI screening</Link>
-                </Button>
               </CardContent>
             </Card>
           </div>

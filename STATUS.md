@@ -43,19 +43,22 @@ infra/             ✅ Terraform skeleton    db/ ✅ leak-probe fixtures + RLS p
 
 ---
 
-## 🔭 Phase 1 — Wedge: Compliant Talent CRM  (~$10/user) — NEXT
-The paid entry product. Reuses the Phase-0 spine (encrypted resumes, consent ledger, audit, RLS) so the
-commodity ships **compliant + encrypted** — the differentiator on the cheap tier.
+## 🔭 Phase 1 — ManFriday: integrated résumé DB + JD matching + outreach — NEXT
+**Re-scoped 2026-05-29 (owner):** one **integrated product**, not a wedge/premium split — résumé
+database + JD→candidate matching + compliant outreach in a single per-seat plan. The matching engine
+is algorithmic (improves as résumés/JDs/feedback accumulate) but the **UI never says "AI"**. Reuses
+the Phase-0 spine (encrypted résumés, consent ledger, audit, RLS) so everything ships compliant.
 
 **UI — real Next.js 15 + shadcn/ui + Tailwind v4, in `web/`** (flagship **mockups** built — synthetic
 data, inert actions; IA + file hierarchy in [`docs/WEDGE_UI.md`](docs/WEDGE_UI.md)). Backend wiring below is still ⬜.
-- ✅ Design system + app shell (premium nav, theming, a11y) — shadcn source-in-repo
-- ✅ Resume / candidate database — list · search/filter (UI) · **detail** · immutable version display
-- ✅ Bulk resume import (drag-drop UI · parsing/encrypt/review queue) — worker wiring ⬜
-- ✅ Requisition intake + **detail** (JD capture + pipeline; CORE/NICE extraction is premium — Phase 2)
+- ✅ Design system + app shell (nav, theming, a11y) — shadcn source-in-repo
+- ✅ Résumé / candidate database — list · search/filter (UI) · **detail** · immutable version display
+- ✅ Candidate detail — **review-area flags** (advisory) · **cross-org proposal history** · **multi-org membership** · consent
+- ✅ Bulk résumé import (drag-drop UI · parsing/encrypt/review queue) — worker wiring ⬜
+- ✅ Requisition intake + **detail** — weighted **core/nice skills** (reorderable) · **JD completeness score** · **top matches** (ranked)
+- ✅ Candidate **fit detail** — transparent fit breakdown · review areas · human triage · tiered Q&A + answer keys
 - ✅ Mass candidate outreach — composer (merge fields · CAN-SPAM footer) · audience · history
-- ✅ Recruiter dashboard (pipeline counts, recent activity)
-- ✅ Recruiter login (email + password + TOTP) · ✅ Settings (plan/billing · team · compliance) · ✅ Premium screening preview (locked)
+- ✅ Recruiter dashboard · ✅ Recruiter login (email + password + TOTP) · ✅ Settings (plan/billing · team · compliance)
 
 **Backend / compliance:**
 - ⬜ Candidate + resume CRUD + search APIs (FastAPI, RLS-scoped, run through the router seam)

@@ -2,9 +2,9 @@ import {
   Briefcase,
   Building2,
   ChevronDown,
+  ListChecks,
   MapPin,
   Plus,
-  Sparkles,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -121,7 +121,7 @@ export default function RequisitionsPage() {
             </table>
           </Card>
 
-          {/* Intake + premium upsell */}
+          {/* Intake + what-happens-next */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -164,25 +164,20 @@ export default function RequisitionsPage() {
               </div>
             </Card>
 
-            {/* Premium upsell — AI skill extraction */}
+            {/* What happens next */}
             <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/40">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-primary" />
-                  <span className="font-semibold">AI skill extraction</span>
-                  <Badge variant="outline" className="ml-auto">
-                    Premium
-                  </Badge>
+                  <ListChecks className="size-4 text-primary" />
+                  <span className="font-semibold">What happens next</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Parse this JD into <span className="font-medium text-foreground">CORE</span> vs{" "}
-                  <span className="font-medium text-foreground">nice-to-have</span> skills with
-                  weights and evidence spans — every extraction reproducible, recruiter-confirmed,
-                  and audit-logged.
+                  When you create a requisition, ManFriday breaks the JD into{" "}
+                  <span className="font-medium text-foreground">core</span> and{" "}
+                  <span className="font-medium text-foreground">nice-to-have</span> skills, scores
+                  how complete it is, and ranks the best-fit candidates from your database — each
+                  match traceable to evidence and confirmed by you.
                 </p>
-                <Button variant="outline" size="sm" className="w-full">
-                  Explore premium
-                </Button>
               </CardContent>
             </Card>
           </div>

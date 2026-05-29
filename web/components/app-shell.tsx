@@ -1,9 +1,8 @@
-import { Briefcase, LayoutDashboard, Mail, Plus, Search, Settings, Sparkles, Users } from "lucide-react";
+import { Briefcase, LayoutDashboard, Mail, Plus, Search, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { plan } from "@/lib/sample-data";
 import { cn } from "@/lib/utils";
@@ -11,8 +10,8 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { key: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard },
   { key: "candidates", label: "Candidates", href: "/candidates", icon: Users },
-  { key: "outreach", label: "Outreach", href: "/outreach", icon: Mail },
   { key: "requisitions", label: "Requisitions", href: "/requisitions", icon: Briefcase },
+  { key: "outreach", label: "Outreach", href: "/outreach", icon: Mail },
   { key: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -58,32 +57,13 @@ export function AppShell({
               </Link>
             );
           })}
-
-          <p className="px-3 pb-1 pt-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Premium
-          </p>
-          <Link
-            href="/screening"
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              active === "screening"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground/70 hover:bg-accent hover:text-foreground",
-            )}
-          >
-            <Sparkles className="size-4" />
-            AI Screening
-            <Badge variant="outline" className="ml-auto">
-              Upgrade
-            </Badge>
-          </Link>
         </nav>
 
         <div className="border-t border-border p-3">
           <Link href="/settings" className="block rounded-lg bg-accent/50 p-3 transition-colors hover:bg-accent">
             <p className="text-xs font-medium">{plan.name} plan</p>
             <p className="text-xs text-muted-foreground">
-              Resume DB + outreach · {plan.price}
+              {plan.seatsUsed} of {plan.seatsTotal} seats · {plan.price}
               {plan.unit}
             </p>
           </Link>
