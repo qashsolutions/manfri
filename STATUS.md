@@ -47,13 +47,15 @@ infra/             ✅ Terraform skeleton    db/ ✅ leak-probe fixtures + RLS p
 The paid entry product. Reuses the Phase-0 spine (encrypted resumes, consent ledger, audit, RLS) so the
 commodity ships **compliant + encrypted** — the differentiator on the cheap tier.
 
-**UI — real Next.js 15 + shadcn/ui + Tailwind v4, in `web/`:**
-- ⬜ Design system + app shell (premium nav, theming, a11y) — shadcn source-in-repo
-- ⬜ Resume / candidate database — list · search/filter · detail · immutable versions (on WP 0.6)
-- ⬜ Bulk resume import (drag-drop → ingestion worker WP 0.11 → encrypted store + audit)
-- ⬜ Requisition intake (capture the JD; CORE/NICE extraction is premium — Phase 2)
-- ⬜ Mass candidate outreach — templated email composer · recipient selection · send + track
-- ⬜ Recruiter dashboard (pipeline counts, recent activity)
+**UI — real Next.js 15 + shadcn/ui + Tailwind v4, in `web/`** (flagship **mockups** built — synthetic
+data, inert actions; IA + file hierarchy in [`docs/WEDGE_UI.md`](docs/WEDGE_UI.md)). Backend wiring below is still ⬜.
+- ✅ Design system + app shell (premium nav, theming, a11y) — shadcn source-in-repo
+- ✅ Resume / candidate database — list · search/filter (UI) · **detail** · immutable version display
+- ✅ Bulk resume import (drag-drop UI · parsing/encrypt/review queue) — worker wiring ⬜
+- ✅ Requisition intake + **detail** (JD capture + pipeline; CORE/NICE extraction is premium — Phase 2)
+- ✅ Mass candidate outreach — composer (merge fields · CAN-SPAM footer) · audience · history
+- ✅ Recruiter dashboard (pipeline counts, recent activity)
+- ✅ Recruiter login (email + password + TOTP) · ✅ Settings (plan/billing · team · compliance) · ✅ Premium screening preview (locked)
 
 **Backend / compliance:**
 - ⬜ Candidate + resume CRUD + search APIs (FastAPI, RLS-scoped, run through the router seam)

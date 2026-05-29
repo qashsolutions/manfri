@@ -66,8 +66,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-1">
               {candidates.slice(0, 5).map((c) => (
-                <div
+                <Link
                   key={c.id}
+                  href={`/candidates/${c.id}`}
                   className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent/50"
                 >
                   <div className="flex size-9 items-center justify-center rounded-full bg-accent text-sm font-medium text-accent-foreground">
@@ -80,7 +81,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <Badge variant={STATUS_VARIANT[c.status]}>{statusLabel[c.status]}</Badge>
-                </div>
+                </Link>
               ))}
             </CardContent>
           </Card>
@@ -91,7 +92,7 @@ export default function DashboardPage() {
               <CardDescription>Pipeline by role</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {requisitions.map((r) => (
+              {requisitions.slice(0, 4).map((r) => (
                 <div key={r.id} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{r.title}</span>
@@ -115,7 +116,9 @@ export default function DashboardPage() {
                 questions — every output auditable and human-decided. Premium tier.
               </p>
             </div>
-            <Button>Explore premium</Button>
+            <Button asChild>
+              <Link href="/screening">Explore premium</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
