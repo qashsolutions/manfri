@@ -13,6 +13,8 @@ dependencies = [
   "psycopg[binary]>=3.2",
   "pgvector>=0.3",
   "cryptography>=43",
+  "presidio-analyzer>=2.2",
+  "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
 ]
 
 [build-system]
@@ -21,3 +23,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.hatch.metadata]
+# Allow the pinned spaCy model wheel (direct URL) as a dependency.
+allow-direct-references = true
