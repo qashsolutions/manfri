@@ -19,6 +19,10 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://manfriday_app@localhost:5432/manfriday_dev"
 
+    # Object storage for resume/JD originals. Dev/CI uses a local filesystem store;
+    # cloud swaps in S3 (SSE-KMS) by config. See app/storage.
+    storage_dir: str = "/tmp/manfriday-object-store"  # noqa: S108 (dev default; cloud uses S3)
+
 
 @lru_cache
 def get_settings() -> Settings:

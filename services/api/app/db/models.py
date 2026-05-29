@@ -27,6 +27,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Identity,
+    Index,
     Integer,
     Numeric,
     Text,
@@ -302,4 +303,52 @@ class AuditEvent(Base):
     __table_args__ = (
         UniqueConstraint("hash"),
         UniqueConstraint("org_id", "prev_hash"),
+    )
+
+
+class Resume(Base):
+    """Immutable, versioned resume. A new upload is a NEW row (never an update of
+    content). ``content_hash`` dedupes; ``is_current`` + ``superseded_by`` chain
+    versions. The original bytes live in object storage (S3 SSE-KMS in cloud);
+    scoring pins a resume version. Parse output (``parsed_jsonb`` / ``parse_run_id``)
+    is filled in Phase 1.
+    """
+
+    __tablename__ = "resume"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("candidate.id", ondelete="CASCADE"), index=True
+    )
+    version: Mapped[int] = mapped_column(Integer)
+    content_hash: Mapped[str] = mapped_column(Text)
+    storage_uri: Mapped[str] = mapped_column(Text)
+    content_type: Mapped[str | None] = mapped_column(Text)
+    parsed_jsonb: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    parse_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("parse_run.id", ondelete="SET NULL")
+    )
+    is_current: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    superseded_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("resume.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+    __table_args__ = (
+        UniqueConstraint("candidate_id", "version", name="uq_resume_candidate_version"),
+        UniqueConstraint("candidate_id", "content_hash", name="uq_resume_candidate_content_hash"),
+        # At most one current version per candidate.
+        Index(
+            "uq_resume_current_per_candidate",
+            "candidate_id",
+            unique=True,
+            postgresql_where=text("is_current"),
+        ),
     )
