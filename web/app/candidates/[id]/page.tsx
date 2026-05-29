@@ -12,7 +12,6 @@ import {
   Target,
   TriangleAlert,
   Upload,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -29,7 +28,6 @@ import {
   type FlagSeverity,
   getCandidate,
   getCandidateDetail,
-  getCandidateOrgs,
   getProposalHistory,
   getReviewFlags,
   type ProposalOutcome,
@@ -83,11 +81,10 @@ export default async function CandidateDetailPage({
   const candidate = await getCandidate(id);
   if (!candidate) notFound();
 
-  const [d, reviewFlags, proposalHistory, candidateOrgs] = await Promise.all([
+  const [d, reviewFlags, proposalHistory] = await Promise.all([
     getCandidateDetail(id),
     getReviewFlags(id),
     getProposalHistory(id),
-    getCandidateOrgs(id),
   ]);
 
   return (
@@ -115,12 +112,6 @@ export default async function CandidateDetailPage({
                   <Badge variant="success">Opted in</Badge>
                 ) : (
                   <Badge variant="outline">Consent pending</Badge>
-                )}
-                {candidateOrgs.length > 1 && (
-                  <Badge variant="outline">
-                    <Building2 className="size-3" />
-                    In {candidateOrgs.length} organizations
-                  </Badge>
                 )}
               </div>
               <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -208,12 +199,12 @@ export default async function CandidateDetailPage({
               </CardContent>
             </Card>
 
-            {/* Proposal history (cross-org) */}
+            {/* Proposal history (within this org — across its clients) */}
             <Card>
               <CardHeader>
                 <CardTitle>Proposal history</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Where this candidate was proposed, when, and why — across organizations.
+                  Where you proposed this candidate, when, and why — across your clients.
                 </p>
               </CardHeader>
               <CardContent>
@@ -231,7 +222,7 @@ export default async function CandidateDetailPage({
                           </Badge>
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {p.org} · {p.date}
+                          {p.client} · {p.date}
                         </p>
                         {p.reason && (
                           <p className="mt-0.5 text-sm text-muted-foreground">Reason: {p.reason}</p>
@@ -272,28 +263,6 @@ export default async function CandidateDetailPage({
           </div>
 
           <div className="space-y-6">
-            {/* Organizations (multi-org membership) */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Organizations</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <ul className="space-y-2">
-                  {candidateOrgs.map((org) => (
-                    <li key={org} className="flex items-center gap-2 text-sm">
-                      <Users className="size-4 text-muted-foreground" />
-                      {org}
-                    </li>
-                  ))}
-                </ul>
-                <Separator />
-                <p className="text-xs text-muted-foreground">
-                  This candidate is in more than one pool. Each org only sees its own notes,
-                  proposals, and activity — sharing is consent-gated and access is RLS-scoped.
-                </p>
-              </CardContent>
-            </Card>
-
             {/* Résumé versions */}
             <Card>
               <CardHeader>

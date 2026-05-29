@@ -6,7 +6,6 @@ import {
   audience,
   campaigns,
   candidateDetail,
-  candidateOrgs,
   candidates,
   emailTemplates,
   importQueue,
@@ -32,7 +31,6 @@ export const mockProvider: DataProvider = {
   getCandidateDetail: async () => candidateDetail,
   getReviewFlags: async () => reviewFlags,
   getProposalHistory: async () => proposalHistory,
-  getCandidateOrgs: async () => candidateOrgs,
   getImportQueue: async () => importQueue,
 
   listRequisitions: async () => requisitions,

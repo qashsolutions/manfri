@@ -37,7 +37,6 @@ export const apiProvider: DataProvider = {
   getCandidateDetail: async () => notWired("getCandidateDetail"),
   getReviewFlags: async () => notWired("getReviewFlags"),
   getProposalHistory: async () => notWired("getProposalHistory"),
-  getCandidateOrgs: async () => notWired("getCandidateOrgs"),
   getImportQueue: async () => notWired("getImportQueue"),
 
   listRequisitions: async () => notWired("listRequisitions"),

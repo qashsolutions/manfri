@@ -21,7 +21,7 @@ reads live data; nothing in prod is static.
 | D-b | Users can upload + bulk-upload résumés | **Confirmed** |
 | D-c | No static screens in prod — all dynamic, all real | **Confirmed** |
 | D-d | Résumé parsing approach (v1) | **Deterministic first** (text-extract + rules; LLM later) |
-| D-e | Multi-org candidate model | **Shared pool from day one** (global candidate + per-org consent join) |
+| D-e | Multi-org candidate model | **Strict org isolation** — each org stores its own copy; no cross-org sharing or link (clarified by owner) |
 | D-f | Supabase accounts | **Owner is creating them** |
 | D-g | Pricing | `$29`/seat placeholder, unconfirmed |
 
@@ -35,10 +35,11 @@ real candidate data.
 - **D2 — Demographic data / EEOC defense** (counsel)
 - **D3 — Agency↔client liability** (counsel)
 - **D5 — Retention vs deletion** (counsel)
-- **NEW — Cross-org candidate sharing & consent** (counsel): "shared pool from day one" relaxes the strict
-  org-isolation invariant (#3) and the per-(candidate×req) rule (#9). It is **buildable now**; it must be
-  **counsel-approved before real candidate PII is shared across orgs.**
 - **Supabase region + DPA** confirmed before real PII (D8 supersession already noted in STATUS).
+
+  *(Note: an earlier "shared candidate pool" idea was dropped — the owner clarified the model is strict
+  org isolation, where org A and org B may each independently hold the same person's résumé but never see
+  each other's data. That removes the cross-org consent question entirely and keeps invariant #3 intact.)*
 
 > Build order is designed so all of this is exercised with **synthetic data in dev** first; the prod
 > switch (`DATA_SOURCE=api` + Supabase) is the *last* step and the one that needs the sign-offs.
@@ -63,20 +64,16 @@ From the backend survey:
 - **Web seam (this session)**: `web/lib/data` with `DATA_SOURCE=mock|api`; `api.ts` stubbed and ready to wire.
 - **Tests**: 47 (RLS isolation, leak probe, provenance, audit, resume, redaction, router, auth, ingestion).
 
-## 4. The schema change — shared candidate pool via **identity link** (D-e, owner-confirmed)
+## 4. The schema change — strict org isolation (D-e, owner-clarified)
 
-The biggest design point. Owner chose the **identity-link** model over a single global candidate row,
-specifically to **keep every Phase-0 invariant intact**: each org keeps its own RLS-scoped `candidate` row
-with PII encrypted under *its own* tenant key (#3, #4, #11 preserved). A tiny **global, no-PII** identity
-table links the same person's rows across orgs. "In 3 orgs" = three encrypted org-scoped rows → one identity.
+Owner clarified the model: **each org independently stores its own copy of a candidate.** Org A may source a
+person's résumé from one place and org B from another; both store it, and **neither ever sees the other's
+data.** There is **no shared pool, no cross-org link, no identity table** — this is exactly Phase-0 invariant
+#3, untouched. (An earlier identity-link idea was built and then removed once this was clarified.)
 
 ```
-candidate_identity   (NEW — GLOBAL lookup, like `role`: NO org_id, NO RLS, NO PII)
-  id, email_hash (sha256 of normalized email — opaque, deduplicates a person across orgs), created_at
-
-candidate            (stays org-scoped + RLS + per-org-encrypted PII; gains:)
-  + identity_id → candidate_identity.id     (links the same person across orgs)
-  + consent_state   'pending'|'opted_in'|'unsubscribed'   (per-org)
+candidate            (stays org-scoped + RLS + per-org-encrypted PII; gains per-org fields:)
+  + consent_state   'pending'|'opted_in'|'unsubscribed'
   + consent_source, consent_updated_at
   + status          'new'|'contacted'|'screening'|'submitted'   (per-org pipeline state)
   (PII stays in pii_jsonb, encrypted with this org's tenant_key — unchanged)
@@ -84,27 +81,23 @@ candidate            (stays org-scoped + RLS + per-org-encrypted PII; gains:)
 resume               (unchanged: candidate-linked, immutable/versioned; org-scoped by RLS)
 
 requisition  (NEW, org-scoped + RLS)  id, org_id, client_id?, title, location, employment_type,
-             openings, status 'open'|'on_hold'|'filled', jd_storage_uri?, jd_content_hash?, jd_version,
-             parse_run_id?, created_at, deleted_at
+             openings, status 'open'|'on_hold'|'filled', jd_text?, jd_storage_uri?, jd_content_hash?,
+             jd_version, parse_run_id?, created_at, deleted_at
 jd_skill     (NEW, org-scoped + RLS)  id, org_id, requisition_id, name, tier 'core'|'nice',
              weight (0..1), sort_order        -- reorderable / reprioritizable
 proposal     (NEW, org-scoped + RLS)  id, org_id, candidate_id, requisition_id, outcome
              'proposed'|'interviewing'|'rejected'|'hired', reason?, decided_by?, decided_at?, created_at
+             -- a candidate's history WITHIN this org, across its clients/reqs — never across orgs
 consent_ledger (NEW, org-scoped + RLS, append-only)  id, org_id, candidate_id, event, source?, occurred_at
 ```
 
 **Invariant handling (explicit):**
-- Every *tenant* table — `candidate`, `requisition`, `jd_skill`, `proposal`, `consent_ledger` — is
-  **org-scoped + RLS** (invariant #3 holds). `candidate_identity` is a **global, no-PII** lookup (like
-  `role`), so it carries no tenant data to leak.
-- PII stays in `candidate.pii_jsonb`, **encrypted per-org** (invariants #4/#11 unchanged). There is no global
-  PII row — the recommended model's whole point.
-- **Default reads stay RLS-clean.** Each org sees only its own candidate/proposal rows. The *cross-org*
-  surfaces (the "in N orgs" badge, aggregated cross-org proposal history) are a **separate, consent-gated
-  aggregation** over `identity_id` that is **counsel-gated** (§2) and NOT enabled by default — until then the
-  candidate detail shows this org's own data plus, at most, what the identity link permits without exposing
-  another org's private rows. Leak-probe tests assert org B cannot read org A's candidate/proposal rows even
-  when they share an identity.
+- Every new table — `candidate` (extended), `requisition`, `jd_skill`, `proposal`, `consent_ledger` — is
+  **org-scoped + RLS** (invariant #3 holds, unchanged from Phase 0). No global tables added.
+- PII stays in `candidate.pii_jsonb`, **encrypted per-org** (invariants #4/#11 unchanged).
+- "Proposal history" is strictly within-org (across that org's clients/reqs). Leak-probe tests
+  (`test_product_rls_isolation.py`) assert org B sees none of org A's candidate/requisition/proposal rows
+  even when both orgs independently store the same person.
 
 **Migration:** folded into the single **replayable baseline** (`0001`), not a separate `0002`. The baseline
 materializes the schema via `Base.metadata.create_all` (live ORM metadata), so a standalone `ALTER`-style
@@ -179,7 +172,7 @@ appropriate, region.** Then:
 
 ## 10. Build sequence (PR-sized steps)
 
-1. **Schema** — ✅ done: shared-pool tables + RLS folded into the replayable baseline + new leak-probe tests (61 passed). *(task #2)*
+1. **Schema** — ✅ done: org-isolated product tables (requisition/jd_skill/proposal/consent_ledger + candidate consent/status) + RLS folded into the replayable baseline + new leak-probe tests. *(task #2)*
 2. **Parser + worker** — deterministic parser + Arq `parse_resume` job + tests. *(task #3)*
 3. **Endpoints** — FastAPI product routers + OpenAPI/TS regen, drift gate green. *(task #4)*
 4. **Web wiring** — `api.ts` + `force-dynamic`; verify `DATA_SOURCE=api` against local Postgres. *(task #5)*

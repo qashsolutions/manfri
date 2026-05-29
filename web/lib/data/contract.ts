@@ -35,7 +35,6 @@ export interface DataProvider {
   getCandidateDetail(id: string): Promise<CandidateDetail>;
   getReviewFlags(candidateId: string): Promise<ReviewFlag[]>;
   getProposalHistory(candidateId: string): Promise<Proposal[]>;
-  getCandidateOrgs(candidateId: string): Promise<string[]>;
   getImportQueue(): Promise<ImportItem[]>;
 
   // Requisitions & matching

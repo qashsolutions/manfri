@@ -24,7 +24,6 @@ export const getCandidate = provider.getCandidate;
 export const getCandidateDetail = provider.getCandidateDetail;
 export const getReviewFlags = provider.getReviewFlags;
 export const getProposalHistory = provider.getProposalHistory;
-export const getCandidateOrgs = provider.getCandidateOrgs;
 export const getImportQueue = provider.getImportQueue;
 export const listRequisitions = provider.listRequisitions;
 export const getRequisition = provider.getRequisition;

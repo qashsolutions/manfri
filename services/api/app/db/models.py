@@ -135,33 +135,13 @@ class Membership(Base):
     )
 
 
-class CandidateIdentity(Base):
-    """Global, no-PII identity that links the same person across orgs (Phase 1).
-
-    Like ``role``, this is a global lookup — NOT tenant-scoped, NO RLS, and it holds
-    NO PII: only an opaque ``email_hash`` (sha256 of the normalized email). It lets a
-    candidate belong to more than one org while every org keeps its OWN org-scoped,
-    per-tenant-encrypted ``candidate`` row (invariants #3/#4/#11 preserved). "In 3
-    orgs" = three encrypted ``candidate`` rows sharing one ``candidate_identity``.
-    """
-
-    __tablename__ = "candidate_identity"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True, server_default=text("gen_random_uuid()")
-    )
-    email_hash: Mapped[str] = mapped_column(Text, unique=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=text("now()")
-    )
-
-
 class Candidate(Base):
-    """Org-scoped candidate (Phase 1 adds identity link, consent, pipeline status).
+    """Org-scoped candidate (Phase 1 adds per-org consent + pipeline status).
 
-    PII stays in ``pii_jsonb``, envelope-encrypted with THIS org's ``tenant_key``.
-    The same person across orgs is linked by ``identity_id`` (a global, no-PII row),
-    never by sharing a PII record — so RLS + per-tenant encryption are unchanged.
+    Strictly org-isolated (invariant #3): each org stores its OWN candidate rows and
+    never sees another org's. The same person's résumé existing in two orgs is
+    incidental duplication, NOT a shared record — there is deliberately no cross-org
+    link. PII stays in ``pii_jsonb``, envelope-encrypted with THIS org's ``tenant_key``.
     """
 
     __tablename__ = "candidate"
@@ -171,9 +151,6 @@ class Candidate(Base):
     )
     org_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organization.id", ondelete="RESTRICT"), index=True
-    )
-    identity_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("candidate_identity.id", ondelete="SET NULL"), index=True
     )
     external_ref: Mapped[str | None] = mapped_column(Text)
     redaction_status: Mapped[str] = mapped_column(Text, server_default=text("'pending'"))
@@ -489,9 +466,8 @@ class JdSkill(Base):
 class Proposal(Base):
     """A candidate proposed to a requisition, with outcome + reason (Phase 1).
 
-    Org-scoped + RLS: each org reads only its OWN proposals. Aggregating a person's
-    proposals across orgs is a separate, consent-gated read over
-    ``candidate_identity`` (counsel-gated — see PHASE_1_BUILD §2/§4).
+    Org-scoped + RLS: each org reads only its OWN proposals. Within an org this is the
+    candidate's history across that org's clients/requisitions — never across orgs.
     """
 
     __tablename__ = "proposal"
@@ -548,7 +524,5 @@ class ConsentLedger(Base):
     )
 
     __table_args__ = (
-        CheckConstraint(
-            "event in ('opted_in','unsubscribed','pending')", name="event_valid"
-        ),
+        CheckConstraint("event in ('opted_in','unsubscribed','pending')", name="event_valid"),
     )
