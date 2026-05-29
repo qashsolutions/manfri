@@ -6,8 +6,7 @@
 > [`docs/ROADMAP.md`](docs/ROADMAP.md). When those and this file disagree, the docs win on detail;
 > this file wins on "what must never be violated."
 >
-> **Status:** Design complete **and Phase 0 built** — all 14 work packages on branch `phase-0-foundations`, 47 tests green locally (mypy strict + ruff). Started ~2026-05-28.
-> Exit criteria all met locally (leak probe · run-id coverage · p95<50ms · audit chain · walking skeleton). **Pushed to `qashsolutions/manfri`; CI green** (PR #1: js · python · db-gates · container). Next: a market-informed re-plan (commodity wedge — mass candidate email + resume DB ~$10/user — + premium AI tier) on Vercel + Supabase, ratify the ⚖️ [`DECISIONS.md`](docs/DECISIONS.md) items with counsel, then **Phase 1**. See [§15 Where We Are / What's Next](#15-where-we-are--whats-next).
+> **Status:** Phase 0 **built · pushed (`qashsolutions/manfri`) · CI green**, and **Phase 1 (the wedge — Compliant Talent CRM) is underway** on branch `phase-0-foundations`. **67 tests green** (mypy strict + ruff). Phase 1 landed so far, both CI green: **1.1** org-isolated product schema + RLS · **1.2** deterministic résumé parser + Arq parse job. Next: **1.3** FastAPI product endpoints → web wiring → owner-provisioned **Supabase + Vercel** (ratify the ⚖️ [`DECISIONS.md`](docs/DECISIONS.md) items with counsel before real candidate PII lands). Live execution tracker: [`STATUS.md`](STATUS.md). See [§15 Where We Are / What's Next](#15-where-we-are--whats-next).
 
 ---
 
@@ -226,13 +225,15 @@ Many are **product/legal calls only the owner + counsel can make** — surface t
 
 ```
 manfriday/
-├── CLAUDE.md  README.md  SETUP.md   # context anchor · intro · local setup
-├── docs/                # ARCHITECTURE · ROADMAP · PRD · DECISIONS · PHASE_0
-├── web/                 # Next.js 15 BFF (lib/auth EdDSA JWT + iron-session, lib/api)
+├── CLAUDE.md  README.md  SETUP.md  STATUS.md   # context anchor · intro · setup · live status
+├── docs/                # ARCHITECTURE · ROADMAP · PRD · DECISIONS · PHASE_0 · PHASE_1_BUILD · WEDGE_UI
+├── web/                 # Next.js 15 BFF + integrated-product UI (mocked behind a data seam)
+│   ├── app/             # ✅ routes: dashboard · login · candidates(+[id]/import) · requisitions(+[id]) · outreach · settings · screening
+│   └── lib/             # ✅ data/ seam (DATA_SOURCE=mock|api) · sample-data · auth (EdDSA JWT) · api
 ├── services/
-│   ├── api/             # FastAPI: db (RLS models + Alembic), router, redaction,
-│   │                    #   audit, provenance, crypto, auth, telemetry, ingestion
-│   └── workers/         # Arq ingestion worker (workers → api workspace dep)
+│   ├── api/             # FastAPI: db (RLS models + Alembic), router, redaction, audit,
+│   │                    #   provenance, crypto, auth, telemetry, ingestion, ✅ parsing
+│   └── workers/         # Arq worker: ingest + ✅ parse_resume (workers → api workspace dep)
 ├── packages/
 │   ├── contracts/       # OpenAPI 3.1 emitted by FastAPI → generated TS client
 │   └── prompts/         # versioned prompt templates (git = version pin)
@@ -241,7 +242,7 @@ manfriday/
 ├── .github/workflows/   # CI: js · python · db-gates · container
 └── .claude/settings.local.json
 ```
-*(The Phase 0 monorepo is **built** (pnpm + uv workspaces) per [`docs/PHASE_0.md` §3](docs/PHASE_0.md); see [§15](#15-where-we-are--whats-next) for the work-package + exit-criteria status.)*
+*(Monorepo **built** (pnpm + uv workspaces); ✅ marks Phase-1-wedge code already landed. See [`STATUS.md`](STATUS.md) for the live step status and [§15](#15-where-we-are--whats-next).)*
 
 ## 15. Where We Are / What's Next
 
@@ -252,9 +253,15 @@ WP 0.1 monorepo scaffold + CI shell + Terraform skeleton · 0.2 multi-tenant RLS
 
 **Exit criteria — all met locally:** ① leak probe green (CI gate wired) · ② 100% AI writes carry a run id (NOT-NULL FK + bare-insert rejection) · ③ p95 RLS query < 50ms (measured ≈0.1ms — `db/bench_rls_p95.py`) · ④ audit chain verifies unbroken · ⑤ walking skeleton (login → upload → stored immutably + audited). Invariants enforced + tested: **#2** provenance · **#3** RLS isolation · **#4** redaction-before-egress · **#5** append-only audit · **#11** PII-at-rest/crypto-shred.
 
-**Gated / not blockers:** owner ratification of [`DECISIONS.md`](docs/DECISIONS.md) ⚖️ items (D2/D3/D5/D7 — counsel) before real candidate PII; **cloud provisioning** (Neon/Vercel/AWS/KMS — local dev uses Postgres / Redis / filesystem / local-KEK stand-ins behind swappable interfaces); the CI gates are defined + YAML-valid but **unrun** (no GitHub remote yet).
+**Gated / not blockers:** owner ratification of [`DECISIONS.md`](docs/DECISIONS.md) ⚖️ items (D2/D3/D5/D7 — counsel) before real candidate PII; **cloud provisioning** (Neon/Vercel/AWS/KMS — local dev uses Postgres / Redis / filesystem / local-KEK stand-ins behind swappable interfaces); the CI gates run on every push to `qashsolutions/manfri` and are **green** (js · python · db-gates · container).
 
-**Candidate next steps:** push `phase-0-foundations` to a remote so CI runs the gates; ratify the ⚖️ decisions with counsel; then begin **Phase 1** (explainable single-tenant screening loop, [`docs/ROADMAP.md`](docs/ROADMAP.md)).
+**Phase 1 (the wedge — Compliant Talent CRM) — in progress** (live tracker: [`STATUS.md`](STATUS.md); plan: [`docs/PHASE_1_BUILD.md`](docs/PHASE_1_BUILD.md); UI map: [`docs/WEDGE_UI.md`](docs/WEDGE_UI.md)):
+- ✅ **1.1** org-isolated product schema (`candidate`/`requisition`/`jd_skill`/`proposal`/`consent_ledger`) + RLS, folded into the replayable baseline — CI green.
+- ✅ **1.2** deterministic résumé parser (`services/api/app/parsing`) + Arq `parse_resume` job: bytes → reproducible **non-PII** `parsed_jsonb` + a `parse_run` (invariant #2), RLS-scoped + audited — CI green.
+- ⏳ **1.3** FastAPI product endpoints (candidates · resumes single+bulk · requisitions · jd_skill · matches · proposals · outreach · stats) + OpenAPI→TS regen.
+- ⛔ **1.4** web wiring (`api` data provider + `force-dynamic`) · **1.5** owner-provisioned **Supabase** (Postgres+pgvector + Storage) for prod · **1.6** bulk upload + outreach send.
+
+The integrated-product UI is mocked in `web/app` behind a `DATA_SOURCE=mock|api` seam, so prod switches to real data without a rewrite. Real candidate PII (Supabase prod, `DATA_SOURCE=api`) stays gated on counsel sign-off (⚖️ D2/D3/D5) + a Supabase region/DPA.
 
 ## 16. Working Conventions for Claude
 
