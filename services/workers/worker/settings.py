@@ -1,24 +1,50 @@
-"""Arq worker configuration — Phase 0 skeleton.
+"""Arq ingestion worker (WP 0.11).
 
-Only a trivial ``ping`` task exists, to prove the worker wiring. WP 0.11 adds the
-real ingestion worker (virus scan -> store immutable resume -> emit audit event)
-running in a **network-egress-denied** sandbox, with the originating
-``org_id``/``client_id`` carried as **immutable claims in the queue message** —
-no job ever runs with ambient all-tenant authority. The Redis connection is
-supplied from settings/secrets at deploy time, never hardcoded here.
+Each job carries the originating org_id/candidate_id as **immutable claims** — no
+job runs with ambient all-tenant authority. The task delegates to the egress-free
+ingestion pipeline (validate -> immutable store -> audit), scoped to the job's org.
+Redis connection from ``REDIS_URL``. The gVisor/Firecracker egress-denied sandbox
+and ClamAV are deploy-time; the worker code makes no network calls.
 """
 
 from __future__ import annotations
 
+import base64
+import os
+import uuid
 from typing import Any
 
+from arq.connections import RedisSettings
 
-async def ping(ctx: dict[str, Any]) -> str:
-    """Trivial task proving the worker executes. Replaced by ingestion in WP 0.11."""
-    return "pong"
+from app.ingestion import ingest_resume
+from app.storage import get_object_store
+
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+
+
+async def ingest(
+    ctx: dict[str, Any],
+    *,
+    org_id: str,
+    candidate_id: str,
+    filename: str,
+    content_type: str,
+    content_b64: str,
+) -> str:
+    """Arq task: ingest one uploaded resume; return the stored resume id."""
+    resume_id = await ingest_resume(
+        get_object_store(),
+        org_id=uuid.UUID(org_id),
+        candidate_id=uuid.UUID(candidate_id),
+        content=base64.b64decode(content_b64),
+        content_type=content_type,
+        filename=filename,
+    )
+    return str(resume_id)
 
 
 class WorkerSettings:
-    """Arq ``WorkerSettings``. ``redis_settings`` is injected at deploy time (WP 0.11)."""
+    """Arq WorkerSettings. Jobs carry tenant scope as immutable message claims."""
 
-    functions = [ping]
+    functions = [ingest]
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)

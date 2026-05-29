@@ -1264,12 +1264,14 @@ version = "0.0.0"
 source = { editable = "services/workers" }
 dependencies = [
     { name = "arq" },
+    { name = "manfriday-api" },
     { name = "redis" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "arq", specifier = ">=0.26" },
+    { name = "manfriday-api", editable = "services/api" },
     { name = "redis", specifier = ">=5.0" },
 ]
 
