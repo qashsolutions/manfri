@@ -135,8 +135,34 @@ class Membership(Base):
     )
 
 
+class CandidateIdentity(Base):
+    """Global, no-PII identity that links the same person across orgs (Phase 1).
+
+    Like ``role``, this is a global lookup — NOT tenant-scoped, NO RLS, and it holds
+    NO PII: only an opaque ``email_hash`` (sha256 of the normalized email). It lets a
+    candidate belong to more than one org while every org keeps its OWN org-scoped,
+    per-tenant-encrypted ``candidate`` row (invariants #3/#4/#11 preserved). "In 3
+    orgs" = three encrypted ``candidate`` rows sharing one ``candidate_identity``.
+    """
+
+    __tablename__ = "candidate_identity"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    email_hash: Mapped[str] = mapped_column(Text, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+
 class Candidate(Base):
-    """Minimal candidate shell (WP 0.2). Full columns + PII encryption in WP 0.6/0.7."""
+    """Org-scoped candidate (Phase 1 adds identity link, consent, pipeline status).
+
+    PII stays in ``pii_jsonb``, envelope-encrypted with THIS org's ``tenant_key``.
+    The same person across orgs is linked by ``identity_id`` (a global, no-PII row),
+    never by sharing a PII record — so RLS + per-tenant encryption are unchanged.
+    """
 
     __tablename__ = "candidate"
 
@@ -146,13 +172,31 @@ class Candidate(Base):
     org_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organization.id", ondelete="RESTRICT"), index=True
     )
+    identity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("candidate_identity.id", ondelete="SET NULL"), index=True
+    )
     external_ref: Mapped[str | None] = mapped_column(Text)
     redaction_status: Mapped[str] = mapped_column(Text, server_default=text("'pending'"))
     pii_jsonb: Mapped[bytes | None] = mapped_column(LargeBinary)  # envelope-encrypted (WP 0.7)
+    # Per-org outreach consent + pipeline state (Phase 1).
+    consent_state: Mapped[str] = mapped_column(Text, server_default=text("'pending'"))
+    consent_source: Mapped[str | None] = mapped_column(Text)
+    consent_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(Text, server_default=text("'new'"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(
+            "consent_state in ('pending','opted_in','unsubscribed')",
+            name="consent_state_valid",
+        ),
+        CheckConstraint(
+            "status in ('new','contacted','screening','submitted')", name="status_valid"
+        ),
+    )
 
 
 class Embedding(Base):
@@ -373,4 +417,138 @@ class TenantKey(Base):
     key_version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class Requisition(Base):
+    """A job opening (Phase 1). Org-scoped + RLS. The JD original is stored immutably
+    in object storage (``jd_storage_uri`` + ``jd_content_hash``); a parse pins a
+    ``parse_run`` (invariant #2). A scored req references its frozen JD version.
+    """
+
+    __tablename__ = "requisition"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    client_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("client.id", ondelete="SET NULL"), index=True
+    )
+    title: Mapped[str] = mapped_column(Text)
+    location: Mapped[str | None] = mapped_column(Text)
+    employment_type: Mapped[str | None] = mapped_column(Text)
+    openings: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    status: Mapped[str] = mapped_column(Text, server_default=text("'open'"))
+    jd_text: Mapped[str | None] = mapped_column(Text)
+    jd_storage_uri: Mapped[str | None] = mapped_column(Text)
+    jd_content_hash: Mapped[str | None] = mapped_column(Text)
+    jd_version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    parse_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("parse_run.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint("status in ('open','on_hold','filled')", name="status_valid"),
+    )
+
+
+class JdSkill(Base):
+    """A weighted skill extracted from a requisition's JD (Phase 1). Org-scoped + RLS.
+
+    ``tier`` is core vs nice-to-have; ``weight`` (0..1) is recruiter-adjustable and
+    ``sort_order`` makes the list reorderable/reprioritizable. The weight vector is
+    the scoring rubric, so matching reads from here.
+    """
+
+    __tablename__ = "jd_skill"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    requisition_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("requisition.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(Text)
+    tier: Mapped[str] = mapped_column(Text)
+    weight: Mapped[Decimal] = mapped_column(Numeric)
+    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+
+    __table_args__ = (CheckConstraint("tier in ('core','nice')", name="tier_valid"),)
+
+
+class Proposal(Base):
+    """A candidate proposed to a requisition, with outcome + reason (Phase 1).
+
+    Org-scoped + RLS: each org reads only its OWN proposals. Aggregating a person's
+    proposals across orgs is a separate, consent-gated read over
+    ``candidate_identity`` (counsel-gated — see PHASE_1_BUILD §2/§4).
+    """
+
+    __tablename__ = "proposal"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("candidate.id", ondelete="CASCADE"), index=True
+    )
+    requisition_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("requisition.id", ondelete="CASCADE"), index=True
+    )
+    outcome: Mapped[str] = mapped_column(Text, server_default=text("'proposed'"))
+    reason: Mapped[str | None] = mapped_column(Text)
+    decided_by: Mapped[uuid.UUID | None] = mapped_column()
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "outcome in ('proposed','interviewing','rejected','hired')", name="outcome_valid"
+        ),
+    )
+
+
+class ConsentLedger(Base):
+    """Append-only per-candidate consent events (Phase 1; activates the WP-0.2 stub).
+
+    Org-scoped + RLS, and INSERT-only at the DB (no UPDATE/DELETE grant) like
+    ``audit_event`` — consent history is never rewritten.
+    """
+
+    __tablename__ = "consent_ledger"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organization.id", ondelete="CASCADE"), index=True
+    )
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("candidate.id", ondelete="CASCADE"), index=True
+    )
+    event: Mapped[str] = mapped_column(Text)
+    source: Mapped[str | None] = mapped_column(Text)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "event in ('opted_in','unsubscribed','pending')", name="event_valid"
+        ),
     )

@@ -63,50 +63,58 @@ From the backend survey:
 - **Web seam (this session)**: `web/lib/data` with `DATA_SOURCE=mock|api`; `api.ts` stubbed and ready to wire.
 - **Tests**: 47 (RLS isolation, leak probe, provenance, audit, resume, redaction, router, auth, ingestion).
 
-## 4. The schema change — shared candidate pool (D-e)
+## 4. The schema change — shared candidate pool via **identity link** (D-e, owner-confirmed)
 
-The biggest design point. Today `candidate.org_id` is NOT NULL + RLS — a candidate belongs to exactly one
-org. "Shared pool" makes candidate **identity** global while keeping every org's **data about** a candidate
-org-scoped and consent-gated.
+The biggest design point. Owner chose the **identity-link** model over a single global candidate row,
+specifically to **keep every Phase-0 invariant intact**: each org keeps its own RLS-scoped `candidate` row
+with PII encrypted under *its own* tenant key (#3, #4, #11 preserved). A tiny **global, no-PII** identity
+table links the same person's rows across orgs. "In 3 orgs" = three encrypted org-scoped rows → one identity.
 
 ```
-candidate (becomes org-agnostic identity)
-  id, pii_jsonb (encrypted), redaction_status, created_at, deleted_at
-  -- drop org_id as the ownership key; identity is global, deduped by a stable key
-  -- (e.g. hash of normalized email) so the same person isn't duplicated per org
+candidate_identity   (NEW — GLOBAL lookup, like `role`: NO org_id, NO RLS, NO PII)
+  id, email_hash (sha256 of normalized email — opaque, deduplicates a person across orgs), created_at
 
-candidate_org   (NEW — the RLS-scoped membership + per-org state)
-  id, org_id (RLS key), candidate_id → candidate.id
-  consent_state    'opted_in' | 'pending' | 'unsubscribed'
-  consent_source, consent_updated_at
-  status           'new' | 'contacted' | 'screening' | 'submitted'   (per-org pipeline state)
-  notes_jsonb      (per-org private notes — never visible to other orgs)
-  added_at
-  UNIQUE(org_id, candidate_id)
+candidate            (stays org-scoped + RLS + per-org-encrypted PII; gains:)
+  + identity_id → candidate_identity.id     (links the same person across orgs)
+  + consent_state   'pending'|'opted_in'|'unsubscribed'   (per-org)
+  + consent_source, consent_updated_at
+  + status          'new'|'contacted'|'screening'|'submitted'   (per-org pipeline state)
+  (PII stays in pii_jsonb, encrypted with this org's tenant_key — unchanged)
 
-resume            (stays candidate-linked + immutable/versioned; visibility gated by candidate_org
-                   consent — an org sees a résumé only for candidates it has a consented membership to)
+resume               (unchanged: candidate-linked, immutable/versioned; org-scoped by RLS)
 
-requisition       (NEW, org-scoped)   id, org_id, client_id?, title, location, employment_type,
-                   openings, status, jd_storage_uri, jd_version, created_at
-jd_skill          (NEW, org-scoped)   id, org_id, requisition_id, name, tier 'core'|'nice',
-                   weight (0..1), sort_order   -- reorderable/reprioritizable
-proposal          (NEW, org-scoped)   id, org_id, candidate_id, requisition_id, outcome
-                   'proposed'|'interviewing'|'rejected'|'hired', reason, decided_by, decided_at
-                   -- the cross-org history surface reads each org's own proposals only
-consent_ledger    (activate the WP-0.2 stub) append-only consent events per candidate
+requisition  (NEW, org-scoped + RLS)  id, org_id, client_id?, title, location, employment_type,
+             openings, status 'open'|'on_hold'|'filled', jd_storage_uri?, jd_content_hash?, jd_version,
+             parse_run_id?, created_at, deleted_at
+jd_skill     (NEW, org-scoped + RLS)  id, org_id, requisition_id, name, tier 'core'|'nice',
+             weight (0..1), sort_order        -- reorderable / reprioritizable
+proposal     (NEW, org-scoped + RLS)  id, org_id, candidate_id, requisition_id, outcome
+             'proposed'|'interviewing'|'rejected'|'hired', reason?, decided_by?, decided_at?, created_at
+consent_ledger (NEW, org-scoped + RLS, append-only)  id, org_id, candidate_id, event, source?, occurred_at
 ```
 
 **Invariant handling (explicit):**
-- `candidate_org`, `requisition`, `jd_skill`, `proposal` are all **org-scoped + RLS** — invariant #3 holds for
-  every *tenant* row.
-- `candidate`/`resume` identity is global, but **no org can read a candidate's data without a
-  `candidate_org` row** (the join is the gate). Cross-org résumé visibility requires `consent_state` allowing it.
-- This is the documented relaxation; it carries the **NEW counsel gate** in §2. Leak-probe tests get extended
-  to prove org B cannot see org A's notes/proposals/status for a shared candidate.
+- Every *tenant* table — `candidate`, `requisition`, `jd_skill`, `proposal`, `consent_ledger` — is
+  **org-scoped + RLS** (invariant #3 holds). `candidate_identity` is a **global, no-PII** lookup (like
+  `role`), so it carries no tenant data to leak.
+- PII stays in `candidate.pii_jsonb`, **encrypted per-org** (invariants #4/#11 unchanged). There is no global
+  PII row — the recommended model's whole point.
+- **Default reads stay RLS-clean.** Each org sees only its own candidate/proposal rows. The *cross-org*
+  surfaces (the "in N orgs" badge, aggregated cross-org proposal history) are a **separate, consent-gated
+  aggregation** over `identity_id` that is **counsel-gated** (§2) and NOT enabled by default — until then the
+  candidate detail shows this org's own data plus, at most, what the identity link permits without exposing
+  another org's private rows. Leak-probe tests assert org B cannot read org A's candidate/proposal rows even
+  when they share an identity.
 
-**Migration:** Alembic `0002_product_tables.py` — additive. Because Phase 0 has no real data, `candidate`
-can be reshaped cleanly (drop `org_id` ownership, add global dedupe key) without a data backfill.
+**Migration:** folded into the single **replayable baseline** (`0001`), not a separate `0002`. The baseline
+materializes the schema via `Base.metadata.create_all` (live ORM metadata), so a standalone `ALTER`-style
+`0002` can't sit on top of it (the baseline already creates the new tables/columns on replay → `ADD COLUMN`
+would collide). Instead, the Phase-1 tables/columns appear in the baseline automatically, and the baseline's
+RLS list + grants were extended for them (`consent_ledger` append-only like `audit_event`; `candidate_identity`
+a global no-RLS lookup like `role`). Switching to frozen autogenerated incremental migrations is a deliberate
+future step (needed once there's production data to preserve). Verified: clean `downgrade base`→`upgrade head`
+replay; **61 passed / 4 skipped** incl. new shared-pool leak-probe tests proving org B can't read org A's
+candidate/requisition/proposal rows even when they share an identity.
 
 ## 5. Résumé parsing (D-d — deterministic v1)
 
@@ -171,7 +179,7 @@ appropriate, region.** Then:
 
 ## 10. Build sequence (PR-sized steps)
 
-1. **Schema** — `0002` migration (shared-pool tables + RLS) + extend leak-probe/RLS tests. *(task #2)*
+1. **Schema** — ✅ done: shared-pool tables + RLS folded into the replayable baseline + new leak-probe tests (61 passed). *(task #2)*
 2. **Parser + worker** — deterministic parser + Arq `parse_resume` job + tests. *(task #3)*
 3. **Endpoints** — FastAPI product routers + OpenAPI/TS regen, drift gate green. *(task #4)*
 4. **Web wiring** — `api.ts` + `force-dynamic`; verify `DATA_SOURCE=api` against local Postgres. *(task #5)*
