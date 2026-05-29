@@ -1,0 +1,57 @@
+{
+  "components": {
+    "schemas": {
+      "HealthStatus": {
+        "description": "Response model for the liveness probe.",
+        "properties": {
+          "phase": {
+            "title": "Phase",
+            "type": "integer"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "phase"
+        ],
+        "title": "HealthStatus",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Phase 0 foundations skeleton. No decision logic yet.",
+    "title": "ManFriday Internal API",
+    "version": "0.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "description": "Liveness/readiness probe for the walking skeleton.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Health"
+      }
+    }
+  }
+}

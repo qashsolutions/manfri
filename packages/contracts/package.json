@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "gen": "openapi-typescript ./openapi.yaml -o ./src/generated/schema.ts",
+    "gen": "openapi-typescript ./openapi.json -o ./src/generated/schema.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

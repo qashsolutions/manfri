@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Liveness/readiness probe (Phase 0 walking skeleton). */
+        /**
+         * Get Health
+         * @description Liveness/readiness probe for the walking skeleton.
+         */
         get: operations["getHealth"];
         put?: never;
         post?: never;
@@ -25,11 +28,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * HealthStatus
+         * @description Response model for the liveness probe.
+         */
         HealthStatus: {
-            /** @enum {string} */
-            status: "ok";
-            service: string;
+            /** Phase */
             phase: number;
+            /** Service */
+            service: string;
+            /** Status */
+            status: string;
         };
     };
     responses: never;
@@ -49,7 +58,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Service is healthy. */
+            /** @description Successful Response */
             200: {
                 headers: {
                     [name: string]: unknown;

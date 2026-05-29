@@ -47,6 +47,10 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - run: uv sync --frozen --all-packages
+      - name: Regenerate OpenAPI spec from FastAPI
+        run: uv run python -m app.openapi_export
+      - name: OpenAPI drift — committed spec must match FastAPI's emitted spec
+        run: git diff --exit-code -- packages/contracts/openapi.json
       - name: Ruff (lint)
         run: uv run ruff check .
       - name: Ruff (format check)
