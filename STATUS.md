@@ -64,7 +64,7 @@ data, inert actions; IA + file hierarchy in [`docs/WEDGE_UI.md`](docs/WEDGE_UI.m
 - ✅ Deterministic résumé parser + Arq parse job (bytes → reproducible non-PII `parsed_jsonb` + `parse_run`, RLS-scoped + audited)
 - ✅ Candidate + résumé CRUD (single + bulk upload), requisitions + weighted JD skills, transparent skill-overlap matching, JD completeness, proposals, outreach audience/stats, dashboard — FastAPI, RLS-scoped, OpenAPI→TS contract regenerated
 - ✅ Consent capture → activates the `consent_ledger` (WP 0.2 stub); audience is opted-in-only (CAN-SPAM)
-- 🔭 Wire the web `api` data provider (`DATA_SOURCE=api`) + `force-dynamic` to these endpoints
+- ✅ Web `api` data provider wired (`DATA_SOURCE=api`, server-side JWT mint) + `force-dynamic` on data pages; mock stays the dev/CI default. Own-org list shows candidate name (decrypted); contact stays detail-only. Unbuilt surfaces (screening Q&A = Phase 2; email-send/campaigns = gated) throw a clear "not in this phase"
 - ⬜ Comms service — email **send** (provider TBD) · **CAN-SPAM** (unsubscribe + sender ID) · bounce/track  *(send deliberately not built — ⚖️ provider DPA/ZDR + policy)*
 - ⚖️ Outreach adverse-impact — *who* gets emailed for a req is selection-adjacent → log now, monitor later
 - ⬜ Recruiter login UI (email + password + TOTP) wiring the WP 0.10 auth seam

@@ -6,7 +6,7 @@
 > [`docs/ROADMAP.md`](docs/ROADMAP.md). When those and this file disagree, the docs win on detail;
 > this file wins on "what must never be violated."
 >
-> **Status:** Phase 0 **built · pushed (`qashsolutions/manfri`) · CI green**, and **Phase 1 (the wedge — Compliant Talent CRM) is underway** on branch `phase-0-foundations`. **67 tests green** (mypy strict + ruff). Phase 1 landed so far, both CI green: **1.1** org-isolated product schema + RLS · **1.2** deterministic résumé parser + Arq parse job. Next: **1.3** FastAPI product endpoints → web wiring → owner-provisioned **Supabase + Vercel** (ratify the ⚖️ [`DECISIONS.md`](docs/DECISIONS.md) items with counsel before real candidate PII lands). Live execution tracker: [`STATUS.md`](STATUS.md). See [§15 Where We Are / What's Next](#15-where-we-are--whats-next).
+> **Status:** Phase 0 **built · pushed (`qashsolutions/manfri`) · CI green**, and **Phase 1 (the wedge — Compliant Talent CRM) is well underway** on branch `phase-0-foundations`. **87 tests green** (mypy strict + ruff). Landed so far, all CI green: **1.1** org-isolated product schema + RLS · **1.2** deterministic résumé parser + Arq parse job · **1.3** FastAPI product endpoints (23 ops, OpenAPI→TS) · **1.4** web `api` provider wired + `force-dynamic` (mock stays dev/CI default). Next: owner-provisioned **Supabase + Vercel** (1.5) — ratify the ⚖️ [`DECISIONS.md`](docs/DECISIONS.md) items with counsel before real candidate PII lands. Live execution tracker: [`STATUS.md`](STATUS.md). See [§15 Where We Are / What's Next](#15-where-we-are--whats-next).
 
 ---
 
@@ -258,8 +258,9 @@ WP 0.1 monorepo scaffold + CI shell + Terraform skeleton · 0.2 multi-tenant RLS
 **Phase 1 (the wedge — Compliant Talent CRM) — in progress** (live tracker: [`STATUS.md`](STATUS.md); plan: [`docs/PHASE_1_BUILD.md`](docs/PHASE_1_BUILD.md); UI map: [`docs/WEDGE_UI.md`](docs/WEDGE_UI.md)):
 - ✅ **1.1** org-isolated product schema (`candidate`/`requisition`/`jd_skill`/`proposal`/`consent_ledger`) + RLS, folded into the replayable baseline — CI green.
 - ✅ **1.2** deterministic résumé parser (`services/api/app/parsing`) + Arq `parse_resume` job: bytes → reproducible **non-PII** `parsed_jsonb` + a `parse_run` (invariant #2), RLS-scoped + audited — CI green.
-- ⏳ **1.3** FastAPI product endpoints (candidates · resumes single+bulk · requisitions · jd_skill · matches · proposals · outreach · stats) + OpenAPI→TS regen.
-- ⛔ **1.4** web wiring (`api` data provider + `force-dynamic`) · **1.5** owner-provisioned **Supabase** (Postgres+pgvector + Storage) for prod · **1.6** bulk upload + outreach send.
+- ✅ **1.3** FastAPI product endpoints (candidates · résumés single+bulk · requisitions · jd_skill · transparent skill-overlap matching · completeness · proposals · outreach audience · stats), 23 ops, OpenAPI→TS regenerated — CI green.
+- ✅ **1.4** web `api` data provider wired (server-side JWT mint) + `force-dynamic`; mock stays the dev/CI default; own-org list shows decrypted name (contact detail-only); Phase-2/gated surfaces throw a clear "not in this phase" — CI green.
+- ⛔ **1.5** owner-provisioned **Supabase** (Postgres+pgvector + Storage) for prod · **1.6** bulk-upload UI + outreach **send** (email provider + CAN-SPAM, owner/counsel-gated).
 
 The integrated-product UI is mocked in `web/app` behind a `DATA_SOURCE=mock|api` seam, so prod switches to real data without a rewrite. Real candidate PII (Supabase prod, `DATA_SOURCE=api`) stays gated on counsel sign-off (⚖️ D2/D3/D5) + a Supabase region/DPA.
 
