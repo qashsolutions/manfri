@@ -33,9 +33,14 @@ class ReviewFlagOut(BaseModel):
 
 
 class CandidateSummary(BaseModel):
-    """Redacted list/row view — no raw PII; capability + status only."""
+    """Owning-org list/row view: candidate **name** (decrypted for the org that owns
+    the record) + capability/status. Contact details (email/phone) are NOT here —
+    they live only in :class:`CandidateDetail`. Redaction still applies to egress,
+    scoring inputs, and any client-facing shortlist (a separate, later surface).
+    """
 
     id: str
+    name: str | None
     external_ref: str | None
     status: str
     consent_state: str

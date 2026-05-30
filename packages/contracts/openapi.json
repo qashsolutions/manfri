@@ -337,7 +337,7 @@
         "type": "object"
       },
       "CandidateSummary": {
-        "description": "Redacted list/row view \u2014 no raw PII; capability + status only.",
+        "description": "Owning-org list/row view: candidate **name** (decrypted for the org that owns\nthe record) + capability/status. Contact details (email/phone) are NOT here \u2014\nthey live only in :class:`CandidateDetail`. Redaction still applies to egress,\nscoring inputs, and any client-facing shortlist (a separate, later surface).",
         "properties": {
           "consent_state": {
             "title": "Consent State",
@@ -374,6 +374,17 @@
             "title": "Id",
             "type": "string"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "review_flag_count": {
             "title": "Review Flag Count",
             "type": "integer"
@@ -392,6 +403,7 @@
         },
         "required": [
           "id",
+          "name",
           "external_ref",
           "status",
           "consent_state",

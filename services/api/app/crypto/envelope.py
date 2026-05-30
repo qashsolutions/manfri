@@ -102,3 +102,19 @@ async def get_candidate_pii(
 async def crypto_shred(session: AsyncSession, *, org_id: uuid.UUID) -> None:
     """Destroy the tenant's DEK; its encrypted PII becomes unrecoverable."""
     await session.execute(text("delete from tenant_key where org_id = :o"), {"o": org_id})
+
+
+async def get_org_dek(session: AsyncSession, kp: KeyProvider, *, org_id: uuid.UUID) -> bytes | None:
+    """Unwrap the tenant DEK once (None if absent / crypto-shredded).
+
+    For decrypting many candidates' PII in one request (e.g. a list view) without
+    re-unwrapping the DEK per row; pair with :func:`decrypt_pii`.
+    """
+    wrapped = await _fetch_wrapped_dek(session, org_id)
+    return kp.unwrap_dek(wrapped) if wrapped is not None else None
+
+
+def decrypt_pii(dek: bytes, blob: bytes) -> dict[str, Any]:
+    """Decrypt one ``pii_jsonb`` ciphertext with an already-unwrapped DEK."""
+    data: dict[str, Any] = json.loads(_decrypt(dek, blob))
+    return data

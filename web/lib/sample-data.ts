@@ -392,9 +392,55 @@ export const matchDetail = {
 // ── Derived read-model types (consumed by the data-access contract) ──────────
 // These name the shapes returned by lib/data so the mock and api providers
 // can't drift. They are inferred from the mock values for zero maintenance.
-export type Stats = typeof stats;
-export type Plan = typeof plan;
-export type Audience = typeof audience;
-export type OutreachStats = typeof outreachStats;
-export type JdCompleteness = typeof jdCompleteness;
-export type MatchDetail = typeof matchDetail;
+// Explicit interfaces (not `typeof <fixture>`) so BOTH providers satisfy them: the
+// mock returns the const fixtures, and the api provider returns computed data of the
+// same shape. Array members are `readonly` so the `as const` fixtures remain
+// assignable. (A `typeof const` type is a literal like `{activeCandidates: 47}`,
+// which only the fixture itself can satisfy — unusable for the real api path.)
+export interface Stats {
+  activeCandidates: number;
+  openReqs: number;
+  matchesThisWeek: number;
+  emailsSent: number;
+}
+
+export interface Plan {
+  name: string;
+  price: string;
+  unit: string;
+  seats: number;
+  seatsUsed: number;
+}
+
+export interface SkillCount {
+  skill: string;
+  count: number;
+}
+
+export interface Audience {
+  total: number;
+  optedIn: number;
+  pending: number;
+  unsubscribed: number;
+  bySkill: readonly SkillCount[];
+}
+
+export interface OutreachStats {
+  sent: number;
+  opened: number;
+  replied: number;
+  optedOut: number;
+}
+
+export interface JdCompleteness {
+  score: number;
+  items: readonly CompletenessItem[];
+}
+
+export interface MatchDetail {
+  reqId: string;
+  candidateId: string;
+  fit: number;
+  subScores: readonly SubScore[];
+  questions: readonly ScreeningQuestion[];
+}

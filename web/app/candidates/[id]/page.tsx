@@ -1,3 +1,6 @@
+// Render at request time — real data under DATA_SOURCE=api; never prerender an API call.
+export const dynamic = "force-dynamic";
+
 import {
   ArrowLeft,
   Building2,

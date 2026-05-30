@@ -526,7 +526,10 @@ export interface components {
         };
         /**
          * CandidateSummary
-         * @description Redacted list/row view — no raw PII; capability + status only.
+         * @description Owning-org list/row view: candidate **name** (decrypted for the org that owns
+         *     the record) + capability/status. Contact details (email/phone) are NOT here —
+         *     they live only in :class:`CandidateDetail`. Redaction still applies to egress,
+         *     scoring inputs, and any client-facing shortlist (a separate, later surface).
          */
         CandidateSummary: {
             /** Consent State */
@@ -542,6 +545,8 @@ export interface components {
             external_ref: string | null;
             /** Id */
             id: string;
+            /** Name */
+            name: string | null;
             /** Review Flag Count */
             review_flag_count: number;
             /** Skills */
