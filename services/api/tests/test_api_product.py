@@ -105,12 +105,20 @@ def test_create_upload_and_detail_roundtrip(client_a: TestClient) -> None:
     assert len(detail["resumes"]) == 1
 
 
-def test_list_is_redacted(client_a: TestClient) -> None:
-    client_a.post("/candidates", json={"external_ref": "x", "pii": {"name": "Secret Person"}})
+def test_list_shows_name_but_not_contact(client_a: TestClient) -> None:
+    client_a.post(
+        "/candidates",
+        json={
+            "external_ref": "x",
+            "pii": {"name": "Ada Lovelace", "email": "ada@x.test", "phone": "555-0100"},
+        },
+    )
     rows = client_a.get("/candidates").json()
     assert rows
+    assert rows[0]["name"] == "Ada Lovelace"  # owning-org list shows the name…
     blob = str(rows)
-    assert "Secret Person" not in blob  # no raw PII in the list view
+    assert "ada@x.test" not in blob  # …but never contact PII (email/phone) — detail-only
+    assert "555-0100" not in blob
     assert "contact" not in rows[0]
 
 

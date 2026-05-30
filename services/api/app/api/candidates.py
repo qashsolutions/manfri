@@ -36,7 +36,14 @@ from app.api.schemas import (
 )
 from app.audit import append_audit_event
 from app.auth import scoped_transaction
-from app.crypto import PiiUnrecoverableError, get_candidate_pii, get_key_provider, set_candidate_pii
+from app.crypto import (
+    PiiUnrecoverableError,
+    decrypt_pii,
+    get_candidate_pii,
+    get_key_provider,
+    get_org_dek,
+    set_candidate_pii,
+)
 from app.db.models import Candidate, ConsentLedger, Resume
 from app.ingestion import IngestRejectedError, ingest_resume
 from app.matching import review_flags
@@ -66,8 +73,12 @@ async def _current_parsed(session: AsyncSession) -> dict[uuid.UUID, dict[str, An
 
 
 @router.get("", response_model=list[CandidateSummary], operation_id="listCandidates")
-async def list_candidates(session: TenantSession) -> list[CandidateSummary]:
-    """List the org's candidates (redacted — capability + status, never raw PII)."""
+async def list_candidates(session: TenantSession, claims: Claims) -> list[CandidateSummary]:
+    """List the org's candidates: name (decrypted for the owning org) + capability/status.
+
+    Contact details (email/phone) are NOT included — those are detail-only. The DEK is
+    unwrapped once and each name decrypted in-process (one unwrap per request).
+    """
     parsed_by = await _current_parsed(session)
     candidates = (
         (
@@ -80,14 +91,19 @@ async def list_candidates(session: TenantSession) -> list[CandidateSummary]:
         .scalars()
         .all()
     )
+    dek = await get_org_dek(session, get_key_provider(), org_id=claims.org_uuid)
     out: list[CandidateSummary] = []
     for c in candidates:
         parsed = parsed_by.get(c.id, {})
         skills = list(parsed.get("skills", [])) if parsed else []
         years = parsed.get("total_experience_years") if parsed else None
+        name: str | None = None
+        if dek is not None and c.pii_jsonb is not None:
+            name = decrypt_pii(dek, bytes(c.pii_jsonb)).get("name")
         out.append(
             CandidateSummary(
                 id=str(c.id),
+                name=name,
                 external_ref=c.external_ref,
                 status=c.status,
                 consent_state=c.consent_state,

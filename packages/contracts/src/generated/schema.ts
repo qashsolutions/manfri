@@ -13,7 +13,10 @@ export interface paths {
         };
         /**
          * List Candidates
-         * @description List the org's candidates (redacted — capability + status, never raw PII).
+         * @description List the org's candidates: name (decrypted for the owning org) + capability/status.
+         *
+         *     Contact details (email/phone) are NOT included — those are detail-only. The DEK is
+         *     unwrapped once and each name decrypted in-process (one unwrap per request).
          */
         get: operations["listCandidates"];
         put?: never;

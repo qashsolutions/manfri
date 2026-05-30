@@ -1,23 +1,19 @@
 // API provider — the real data source for production (DATA_SOURCE=api).
 //
-// Runs ONLY on the server (it reads the iron-session cookie and mints a 5-min
-// internal JWT per request — the browser never holds a FastAPI token). FastAPI
-// verifies the JWT and sets the RLS GUCs from the verified claims (invariant #3).
+// Runs ONLY on the server: it reads the iron-session cookie and mints a 5-min EdDSA
+// internal JWT per request (the browser never holds a FastAPI token), then calls the
+// product endpoints. FastAPI verifies the JWT and sets the RLS GUCs from the verified
+// claims (invariant #3). This module is imported unconditionally, but its methods run
+// only when DATA_SOURCE=api — so dev/CI on the mock default never hit this path.
 //
-// This is an **honest bridge** between the compliant FastAPI shapes and the richer
-// display types the mock UI was built against. Each method is labelled:
-//   • real        — served straight from the API
-//   • placeholder — a display-only field the Phase-1 API does not model yet (title,
-//                   location, source, applicants, exact core/nice split, …). Filled
-//                   with a neutral value and noted; the UI types get reshaped to the
-//                   redacted reality in a later pass.
-//   • phase-2     — a capability that genuinely isn't built (screening Q&A + sub-
-//                   scores = Phase 2; campaigns / email templates / send-metrics =
-//                   outreach-send, owner/counsel-gated). These THROW a clear error.
-//
-// DATA_SOURCE=mock stays the default everywhere except production, so dev/CI never
-// hit this path. Pages that render under DATA_SOURCE=api must be dynamic (this repo
-// adds `export const dynamic = "force-dynamic"` to the data pages).
+// It is an HONEST bridge from the compliant API shapes to the display types the mock
+// UI was built against. Where a display field has no source in the Phase-1 API
+// (free-text summary, work-auth, desired-comp, activity feed, campaign open-rates,
+// per-candidate title/location) it is left EMPTY — never fabricated — pending a later
+// pass that reshapes the UI to the redacted reality. Capabilities that genuinely
+// aren't built yet THROW a clear error: screening Q&A + sub-scores (Phase 2),
+// campaigns / templates / send-metrics (email-send, owner/counsel-gated), and the
+// bulk-import review queue (no query endpoint yet).
 
 import type { components } from "@manfriday/contracts";
 
@@ -34,7 +30,10 @@ import type {
   ProposalOutcome,
   ReqStatus,
   Requisition,
+  ResumeVersion,
   ReviewFlag,
+  Stats,
+  TeamMember,
 } from "../sample-data";
 import type { DataProvider, MatchRow } from "./contract";
 
@@ -74,25 +73,22 @@ async function apiGet<T>(path: string): Promise<T> {
 }
 
 const day = (iso: string): string => iso.slice(0, 10);
+const optedIn = (consentState: string): boolean => consentState === "opted_in";
 
-// ── Candidate adapters ────────────────────────────────────────────────────────
+// ── Adapters: compliant API shape → mock display type ─────────────────────────
 
 function summaryToCandidate(s: Schemas["CandidateSummary"]): Candidate {
   return {
     id: s.id,
-    name: s.name ?? s.external_ref ?? "—", // real (decrypted for the owning org)
-    title: "", // placeholder — not modeled on the candidate record in Phase 1
-    location: "", // placeholder
+    name: s.name ?? s.external_ref ?? "—", // real: decrypted name for the owning org
+    title: "", // not modeled on the candidate record in Phase 1
+    location: "", // not modeled
     email: "", // contact PII is detail-only, never in the list
-    phone: "", // contact PII is detail-only
     skills: s.skills, // real (parsed)
-    experienceYears: s.experience_years ?? 0, // real
     status: s.status as CandidateStatus, // real
-    topSkillMatch: 0, // placeholder — needs per-req matching, not computed at list time
-    resumeVersions: 0, // placeholder — count not in the summary
+    resumeVersions: 0, // count not carried in the summary
     lastActivity: day(s.created_at), // real (created)
-    source: "", // placeholder — not modeled
-    consent: s.consent_state as Candidate["consent"], // real
+    consent: optedIn(s.consent_state), // real
   };
 }
 
@@ -100,18 +96,14 @@ function detailToCandidate(d: Schemas["CandidateDetail"]): Candidate {
   return {
     id: d.id,
     name: d.contact.name ?? d.external_ref ?? "—", // real
-    title: "", // placeholder
-    location: "", // placeholder
+    title: "",
+    location: "",
     email: d.contact.email ?? "", // real (decrypted, owning-org detail)
-    phone: d.contact.phone ?? "", // real
     skills: d.skills, // real
-    experienceYears: d.experience_years ?? 0, // real
     status: d.status as CandidateStatus, // real
-    topSkillMatch: 0, // placeholder
     resumeVersions: d.resumes.length, // real
     lastActivity: day(d.created_at), // real
-    source: "", // placeholder
-    consent: d.consent_state as Candidate["consent"], // real
+    consent: optedIn(d.consent_state), // real
   };
 }
 
@@ -119,62 +111,65 @@ function requisitionToMock(r: Schemas["RequisitionOut"]): Requisition {
   return {
     id: r.id,
     title: r.title, // real
-    client: "", // placeholder — client name not joined here
+    client: "", // client name not joined into this view
     location: r.location ?? "", // real
-    status: r.status as ReqStatus, // real
+    employmentType: r.employment_type ?? "", // real
     openings: r.openings, // real
-    applicants: 0, // placeholder — not modeled in Phase 1
-    topMatches: 0, // placeholder — from /matches, not the list
-    created: day(r.created_at), // real
-    skillsExtracted: r.core_skill_count + r.nice_skill_count > 0, // real
-    completeness: 0, // placeholder — fetched via /completeness, not the list
+    inPipeline: 0, // proposal count not joined here
+    status: r.status as ReqStatus, // real
+    postedAt: day(r.created_at), // real
   };
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export const apiProvider: DataProvider = {
-  // Dashboard — real.
-  getStats: async () => {
+  // Dashboard — real counts; send metrics aren't built (left blank, not faked).
+  getStats: async (): Promise<Stats> => {
     const s = await apiGet<Schemas["DashboardStats"]>("/dashboard/stats");
     return {
-      activeCandidates: s.candidates,
-      openReqs: s.open_requisitions,
-      matchesThisWeek: s.proposals, // closest real signal; send-based metrics are Phase 2
-      emailsSent: s.opted_in, // placeholder — no send metrics until the comms service
+      candidates: s.candidates, // real
+      activeReqs: s.open_requisitions, // real
+      emailsSent30d: 0, // no send metrics until the comms service
+      responseRate: "—", // no send metrics yet
     };
   },
 
-  // Candidates — real (name + capability; contact only in detail).
+  // Candidates — name + capability in the list; contact only in detail.
   listCandidates: async () =>
     (await apiGet<Schemas["CandidateSummary"][]>("/candidates")).map(summaryToCandidate),
   getCandidate: async (id) =>
     detailToCandidate(await apiGet<Schemas["CandidateDetail"]>(`/candidates/${id}`)),
-  getCandidateDetail: async (id) => {
+  getCandidateDetail: async (id): Promise<CandidateDetail> => {
     const d = await apiGet<Schemas["CandidateDetail"]>(`/candidates/${id}`);
-    const detail: CandidateDetail = {
-      candidate: detailToCandidate(d),
-      resumeVersions: d.resumes.map((r) => ({
-        version: r.version,
-        uploaded: day(r.created_at),
-        current: r.is_current,
-        contentHash: r.content_hash,
-        source: "", // placeholder — upload source not modeled
-      })),
-      activity: [], // placeholder — activity feed not modeled in Phase 1
+    return {
+      phone: d.contact.phone ?? "", // real (decrypted, owning-org detail)
+      workAuth: "", // not modeled in Phase 1
+      availability: "", // not modeled
+      desiredComp: "", // not modeled
+      summary: "", // no free-text summary captured
+      resumeVersions: d.resumes.map(
+        (r): ResumeVersion => ({
+          version: r.version, // real
+          filename: "", // original filename not stored on the row
+          uploadedAt: day(r.created_at), // real
+          sizeKb: 0, // size not carried in the API
+          isCurrent: r.is_current, // real
+          contentHash: r.content_hash, // real
+        }),
+      ),
+      activity: [], // activity feed not modeled in Phase 1
+      consentSource: d.consent_source ?? "", // real
+      consentUpdated: "", // timestamp not surfaced here
     };
-    return detail;
   },
   getReviewFlags: async (candidateId) => {
     const d = await apiGet<Schemas["CandidateDetail"]>(`/candidates/${candidateId}`);
     return d.review_flags.map(
-      (f, i): ReviewFlag => ({
-        id: `${candidateId}-${i}`,
-        candidateId,
-        severity: f.severity as FlagSeverity,
-        category: f.code,
-        detail: f.message,
-        evidence: "", // advisory data-quality flag; no evidence span (not fraud detection)
+      (f): ReviewFlag => ({
+        severity: f.severity as FlagSeverity, // real (advisory, data-quality only)
+        label: f.code, // real
+        detail: f.message, // real
       }),
     );
   },
@@ -184,18 +179,17 @@ export const apiProvider: DataProvider = {
     );
     return ps.map(
       (p): Proposal => ({
-        id: p.id,
-        candidateId: p.candidate_id,
-        client: "", // placeholder — client name not joined
-        reqTitle: p.requisition_title ?? "",
-        date: day(p.decided_at ?? p.created_at),
-        outcome: p.outcome as ProposalOutcome,
-        reason: p.reason ?? "",
+        id: p.id, // real
+        client: "", // client name not joined
+        req: p.requisition_title ?? "", // real
+        date: day(p.decided_at ?? p.created_at), // real
+        outcome: p.outcome as ProposalOutcome, // real
+        reason: p.reason ?? undefined, // real
       }),
     );
   },
   getImportQueue: async () =>
-    phase2("getImportQueue", "the bulk-import review queue is not surfaced as a query yet"),
+    phase2("getImportQueue", "the bulk-import review queue isn't exposed as a query yet"),
 
   // Requisitions & matching — real.
   listRequisitions: async () =>
@@ -205,44 +199,34 @@ export const apiProvider: DataProvider = {
   getJdSkills: async (reqId) => {
     const skills = await apiGet<Schemas["JdSkillOut"][]>(`/requisitions/${reqId}/skills`);
     return skills.map(
-      (s): JdSkill => ({
-        id: s.id,
-        name: s.name,
-        tier: s.tier as JdSkill["tier"],
-        weight: s.weight,
-        source: "added", // placeholder — provenance (extracted vs added) not tracked per row
-        rank: s.sort_order,
-      }),
+      (s): JdSkill => ({ name: s.name, tier: s.tier as JdSkill["tier"], weight: s.weight }),
     );
   },
-  getJdCompleteness: async (reqId) => {
+  getJdCompleteness: async (reqId): Promise<JdCompleteness> => {
     const c = await apiGet<Schemas["JdCompletenessOut"]>(`/requisitions/${reqId}/completeness`);
-    const out: JdCompleteness = {
-      score: c.score,
-      items: c.items.map((i) => ({ label: i.key, present: i.present, hint: i.hint })),
+    return {
+      score: c.score, // real
+      items: c.items.map((i) => ({ label: i.key, present: i.present, hint: i.hint })), // real
     };
-    return out;
   },
   getTopMatches: async (reqId) => {
-    const [res, cands] = await Promise.all([
+    const [res, skills, cands] = await Promise.all([
       apiGet<Schemas["RequisitionMatchesOut"]>(`/requisitions/${reqId}/matches`),
+      apiGet<Schemas["JdSkillOut"][]>(`/requisitions/${reqId}/skills`),
       apiGet<Schemas["CandidateSummary"][]>("/candidates"),
     ]);
+    const coreTotal = skills.filter((s) => s.tier === "core").length;
     const byId = new Map(cands.map((c) => [c.id, summaryToCandidate(c)]));
     return res.matches
       .map((m): MatchRow | null => {
         const candidate = byId.get(m.candidate_id);
         if (!candidate) return null;
         return {
-          candidateId: m.candidate_id,
-          reqId,
-          fit: m.fit, // real
-          coreMatched: m.matched.length, // approx — API returns matched names + missing_core
-          coreTotal: m.matched.length + m.missing_core.length, // approx
-          niceMatched: 0, // placeholder — exact core/nice split needs API enrichment
-          niceTotal: 0, // placeholder
+          candidateId: m.candidate_id, // real
+          fit: m.fit, // real (transparent skill-overlap)
+          coreCovered: coreTotal - m.missing_core.length, // real (derived)
+          coreTotal, // real
           flags: m.review_flag_count, // real
-          rationale: "", // placeholder — transparent breakdown is on the detail view (Phase 2)
           candidate,
         };
       })
@@ -251,43 +235,46 @@ export const apiProvider: DataProvider = {
   getMatchDetail: async () =>
     phase2("getMatchDetail", "screening questions + sub-scores are the Phase 2 screening loop"),
 
-  // Outreach — audience/consent is real; send + campaigns are not built.
+  // Outreach — audience/consent is real; campaigns/templates/send-metrics aren't built.
   listCampaigns: async () =>
-    phase2("listCampaigns", "campaigns require the email-send service (owner/counsel-gated)"),
+    phase2("listCampaigns", "campaigns need the email-send service (owner/counsel-gated)"),
   getEmailTemplates: async () =>
-    phase2("getEmailTemplates", "templates require the email-send service (owner/counsel-gated)"),
+    phase2("getEmailTemplates", "templates need the email-send service (owner/counsel-gated)"),
   getAudience: async () => {
     const s = await apiGet<Schemas["OutreachStatsOut"]>("/outreach/stats");
     return {
-      total: s.total_candidates,
-      optedIn: s.opted_in,
-      pending: s.pending,
-      unsubscribed: s.unsubscribed,
-      bySkill: [], // placeholder — skill breakdown not computed yet
+      total: s.total_candidates, // real
+      optedIn: s.opted_in, // real
+      pendingConsent: s.pending, // real
+      unsubscribed: s.unsubscribed, // real
     };
   },
   getOutreachStats: async () =>
-    phase2("getOutreachStats", "send metrics (sent/opened/replied) require the comms service"),
+    phase2("getOutreachStats", "send metrics (sent/opened/replied) need the comms service"),
 
-  // Settings — plan + team.
+  // Settings — plan placeholder + team.
   getPlan: async () => {
     const p = await apiGet<Schemas["PlanOut"]>("/plan");
     return {
-      name: p.name,
-      price: p.price,
-      unit: p.unit,
-      seats: 0, // placeholder — billing not wired (owner-gated)
-      seatsUsed: 0, // placeholder
+      name: p.name, // real (placeholder plan)
+      price: p.price, // real (placeholder)
+      unit: p.unit, // real
+      seatsUsed: 0, // billing not wired (owner-gated)
+      seatsTotal: 0, // billing not wired
+      renews: "—", // billing not wired
     };
   },
   listTeamMembers: async () => {
     const members = await apiGet<Schemas["TeamMemberOut"][]>("/team");
-    return members.map((m) => ({
-      id: m.id,
-      name: "", // placeholder — display name not modeled on app_user yet
-      email: m.email,
-      role: "Recruiter" as const, // placeholder — role mapping not surfaced yet
-      status: m.status as "active" | "invited",
-    }));
+    return members.map(
+      (m): TeamMember => ({
+        id: m.id, // real
+        name: "", // display name not modeled on app_user yet
+        email: m.email, // real
+        role: "Recruiter", // role mapping not surfaced yet
+        status: m.status as TeamMember["status"], // real
+        twoFactor: false, // TOTP-enrolled flag not surfaced yet
+      }),
+    );
   },
 };

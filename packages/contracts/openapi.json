@@ -1310,7 +1310,7 @@
   "paths": {
     "/candidates": {
       "get": {
-        "description": "List the org's candidates (redacted \u2014 capability + status, never raw PII).",
+        "description": "List the org's candidates: name (decrypted for the owning org) + capability/status.\n\nContact details (email/phone) are NOT included \u2014 those are detail-only. The DEK is\nunwrapped once and each name decrypted in-process (one unwrap per request).",
         "operationId": "listCandidates",
         "parameters": [
           {
