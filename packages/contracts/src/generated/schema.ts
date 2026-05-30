@@ -4,6 +4,130 @@
  */
 
 export interface paths {
+    "/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Candidates
+         * @description List the org's candidates (redacted — capability + status, never raw PII).
+         */
+        get: operations["listCandidates"];
+        put?: never;
+        /**
+         * Create Candidate
+         * @description Create a candidate; PII (if any) is envelope-encrypted at rest (WP 0.7).
+         */
+        post: operations["createCandidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/candidates/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Upload
+         * @description Bulk import: one new candidate per résumé file, each ingested + parsed.
+         */
+        post: operations["bulkUploadResumes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/candidates/{candidate_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Candidate
+         * @description Full detail for the owning org's recruiter (includes decrypted contact PII).
+         */
+        get: operations["getCandidate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/candidates/{candidate_id}/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Consent
+         * @description Record a consent event: append to the immutable ledger + update candidate state.
+         */
+        post: operations["recordConsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/candidates/{candidate_id}/resumes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Resume
+         * @description Upload + parse one résumé for an existing candidate (immutable store + provenance).
+         */
+        post: operations["uploadResume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dashboard Stats
+         * @description Headline counts for the org's dashboard.
+         */
+        get: operations["getDashboardStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -16,6 +140,242 @@ export interface paths {
          * @description Liveness/readiness probe for the walking skeleton.
          */
         get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outreach/audience": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Audience
+         * @description Who is eligible for outreach: opted-in candidates, optionally fitting a requisition.
+         *
+         *     Without ``requisition_id`` it's every opted-in candidate. With one, only those whose
+         *     transparent skill-overlap fit ≥ ``min_fit``. Excluded (unsubscribed / pending) are
+         *     counted, never silently dropped (CAN-SPAM consent).
+         */
+        get: operations["getAudience"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outreach/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Outreach Stats
+         * @description Consent breakdown across the org's candidates.
+         */
+        get: operations["getOutreachStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Plan
+         * @description Plan placeholder (pricing/billing are owner/counsel-gated and not yet wired).
+         */
+        get: operations["getPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description List proposals, optionally filtered to one candidate (their within-org history).
+         */
+        get: operations["listProposals"];
+        put?: never;
+        /**
+         * Create Proposal
+         * @description Record that a candidate was proposed to a requisition (human action, audited).
+         */
+        post: operations["createProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/requisitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Requisitions
+         * @description List the org's requisitions.
+         */
+        get: operations["listRequisitions"];
+        put?: never;
+        /**
+         * Create Requisition
+         * @description Create a requisition (the JD intake).
+         */
+        post: operations["createRequisition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/requisitions/{requisition_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Requisition
+         * @description Get one requisition.
+         */
+        get: operations["getRequisition"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/requisitions/{requisition_id}/completeness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Completeness
+         * @description Deterministic 0–100 rating of how fully the requisition is specified.
+         */
+        get: operations["getJdCompleteness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/requisitions/{requisition_id}/extract-skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extract Jd Skills
+         * @description Suggest skills from the JD text (advisory only — NOT persisted until confirmed).
+         */
+        post: operations["extractJdSkills"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/requisitions/{requisition_id}/matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Matches
+         * @description Rank the org's candidates against the requisition by transparent skill overlap.
+         */
+        get: operations["getRequisitionMatches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/requisitions/{requisition_id}/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Jd Skills
+         * @description List a requisition's weighted CORE/NICE skills (the confirmed rubric).
+         */
+        get: operations["getJdSkills"];
+        /**
+         * Replace Jd Skills
+         * @description Replace the full weighted skill list — the recruiter-confirmed scoring rubric.
+         */
+        put: operations["replaceJdSkills"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Team
+         * @description List the org's users (the Settings → Team view).
+         */
+        get: operations["listTeamMembers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -48,6 +408,190 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AudienceMember */
+        AudienceMember: {
+            /** Candidate Id */
+            candidate_id: string;
+            /** Consent State */
+            consent_state: string;
+            /** External Ref */
+            external_ref: string | null;
+            /** Fit */
+            fit: number | null;
+        };
+        /**
+         * AudienceOut
+         * @description Who is eligible for outreach: opted-in only (CAN-SPAM); excluded counts logged.
+         */
+        AudienceOut: {
+            /** Eligible */
+            eligible: number;
+            /** Excluded Pending */
+            excluded_pending: number;
+            /** Excluded Unsubscribed */
+            excluded_unsubscribed: number;
+            /** Members */
+            members: components["schemas"]["AudienceMember"][];
+            /** Requisition Id */
+            requisition_id: string | null;
+        };
+        /** BulkResumeIn */
+        BulkResumeIn: {
+            /** Items */
+            items: components["schemas"]["BulkResumeItem"][];
+        };
+        /**
+         * BulkResumeItem
+         * @description One file in a bulk upload — creates a new candidate per file.
+         */
+        BulkResumeItem: {
+            /** Content B64 */
+            content_b64: string;
+            /**
+             * Content Type
+             * @default application/pdf
+             */
+            content_type: string;
+            /** External Ref */
+            external_ref?: string | null;
+            /** Filename */
+            filename?: string | null;
+        };
+        /** BulkResumeOut */
+        BulkResumeOut: {
+            /** Created */
+            created: number;
+            /** Results */
+            results: components["schemas"]["BulkResumeResult"][];
+        };
+        /** BulkResumeResult */
+        BulkResumeResult: {
+            /** Candidate Id */
+            candidate_id: string;
+            /** External Ref */
+            external_ref: string | null;
+            /** Filename */
+            filename: string | null;
+            /** Parse Run Id */
+            parse_run_id: string;
+            /** Resume Id */
+            resume_id: string;
+        };
+        /**
+         * CandidateCreate
+         * @description Create a candidate. ``pii`` (name/email/phone/…) is envelope-encrypted at rest.
+         */
+        CandidateCreate: {
+            /**
+             * Consent State
+             * @default pending
+             */
+            consent_state: string;
+            /** External Ref */
+            external_ref?: string | null;
+            /** Pii */
+            pii?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * CandidateDetail
+         * @description Full candidate view for the owning org's recruiter (includes decrypted contact).
+         */
+        CandidateDetail: {
+            /** Consent Source */
+            consent_source: string | null;
+            /** Consent State */
+            consent_state: string;
+            contact: components["schemas"]["ContactInfo"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Experience Years */
+            experience_years: number | null;
+            /** External Ref */
+            external_ref: string | null;
+            /** Id */
+            id: string;
+            /** Resumes */
+            resumes: components["schemas"]["ResumeInfo"][];
+            /** Review Flags */
+            review_flags: components["schemas"]["ReviewFlagOut"][];
+            /** Skills */
+            skills: string[];
+            /** Status */
+            status: string;
+        };
+        /**
+         * CandidateSummary
+         * @description Redacted list/row view — no raw PII; capability + status only.
+         */
+        CandidateSummary: {
+            /** Consent State */
+            consent_state: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Experience Years */
+            experience_years: number | null;
+            /** External Ref */
+            external_ref: string | null;
+            /** Id */
+            id: string;
+            /** Review Flag Count */
+            review_flag_count: number;
+            /** Skills */
+            skills: string[];
+            /** Status */
+            status: string;
+        };
+        /**
+         * ConsentEventIn
+         * @description Record a consent event (append-only ledger + candidate state).
+         */
+        ConsentEventIn: {
+            /** Event */
+            event: string;
+            /** Source */
+            source?: string | null;
+        };
+        /**
+         * ContactInfo
+         * @description Decrypted contact PII — owning-org detail view only.
+         */
+        ContactInfo: {
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
+        /** DashboardStats */
+        DashboardStats: {
+            /** Candidates */
+            candidates: number;
+            /** Open Requisitions */
+            open_requisitions: number;
+            /** Opted In */
+            opted_in: number;
+            /** Proposals */
+            proposals: number;
+            /** Requisitions */
+            requisitions: number;
+        };
+        /**
+         * ExtractedSkillsOut
+         * @description Skills *suggested* from the JD text — NOT persisted until the recruiter confirms.
+         */
+        ExtractedSkillsOut: {
+            /** Suggested */
+            suggested: components["schemas"]["JdSkillIn"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -62,6 +606,269 @@ export interface components {
             phase: number;
             /** Service */
             service: string;
+            /** Status */
+            status: string;
+        };
+        /** JdCompletenessItemOut */
+        JdCompletenessItemOut: {
+            /** Hint */
+            hint: string;
+            /** Key */
+            key: string;
+            /** Present */
+            present: boolean;
+        };
+        /** JdCompletenessOut */
+        JdCompletenessOut: {
+            /** Items */
+            items: components["schemas"]["JdCompletenessItemOut"][];
+            /** Score */
+            score: number;
+        };
+        /** JdSkillIn */
+        JdSkillIn: {
+            /** Name */
+            name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Tier */
+            tier: string;
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+        };
+        /** JdSkillOut */
+        JdSkillOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Tier */
+            tier: string;
+            /** Weight */
+            weight: number;
+        };
+        /**
+         * JdSkillsReplace
+         * @description Replace a requisition's full weighted skill list (recruiter-confirmed rubric).
+         */
+        JdSkillsReplace: {
+            /** Skills */
+            skills: components["schemas"]["JdSkillIn"][];
+        };
+        /**
+         * MatchOut
+         * @description One ranked candidate for a requisition — transparent skill-overlap fit.
+         */
+        MatchOut: {
+            /** Candidate Id */
+            candidate_id: string;
+            /** Core Coverage */
+            core_coverage: number;
+            /** External Ref */
+            external_ref: string | null;
+            /** Fit */
+            fit: number;
+            /** Matched */
+            matched: string[];
+            /** Missing Core */
+            missing_core: string[];
+            /** Nice Coverage */
+            nice_coverage: number;
+            /** Review Flag Count */
+            review_flag_count: number;
+        };
+        /** OutreachStatsOut */
+        OutreachStatsOut: {
+            /** Opted In */
+            opted_in: number;
+            /** Pending */
+            pending: number;
+            /** Total Candidates */
+            total_candidates: number;
+            /** Unsubscribed */
+            unsubscribed: number;
+        };
+        /**
+         * PlanOut
+         * @description Plan placeholder. Pricing + billing are owner/counsel-gated (⚖️) and not yet wired.
+         */
+        PlanOut: {
+            /** Name */
+            name: string;
+            /** Note */
+            note: string;
+            /** Price */
+            price: string;
+            /** Unit */
+            unit: string;
+        };
+        /** ProposalCreate */
+        ProposalCreate: {
+            /** Candidate Id */
+            candidate_id: string;
+            /**
+             * Outcome
+             * @default proposed
+             */
+            outcome: string;
+            /** Reason */
+            reason?: string | null;
+            /** Requisition Id */
+            requisition_id: string;
+        };
+        /** ProposalOut */
+        ProposalOut: {
+            /** Candidate Id */
+            candidate_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Id */
+            id: string;
+            /** Outcome */
+            outcome: string;
+            /** Reason */
+            reason: string | null;
+            /** Requisition Id */
+            requisition_id: string;
+            /** Requisition Title */
+            requisition_title: string | null;
+        };
+        /** RequisitionCreate */
+        RequisitionCreate: {
+            /** Client Id */
+            client_id?: string | null;
+            /** Employment Type */
+            employment_type?: string | null;
+            /** Jd Text */
+            jd_text?: string | null;
+            /** Location */
+            location?: string | null;
+            /**
+             * Openings
+             * @default 1
+             */
+            openings: number;
+            /** Title */
+            title: string;
+        };
+        /** RequisitionMatchesOut */
+        RequisitionMatchesOut: {
+            /** Matcher Version */
+            matcher_version: string;
+            /** Matches */
+            matches: components["schemas"]["MatchOut"][];
+            /** Requisition Id */
+            requisition_id: string;
+        };
+        /** RequisitionOut */
+        RequisitionOut: {
+            /** Core Skill Count */
+            core_skill_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Employment Type */
+            employment_type: string | null;
+            /** Has Jd Text */
+            has_jd_text: boolean;
+            /** Id */
+            id: string;
+            /** Location */
+            location: string | null;
+            /** Nice Skill Count */
+            nice_skill_count: number;
+            /** Openings */
+            openings: number;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * ResumeInfo
+         * @description One immutable résumé version.
+         */
+        ResumeInfo: {
+            /** Content Hash */
+            content_hash: string;
+            /** Content Type */
+            content_type: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Is Current */
+            is_current: boolean;
+            /** Parsed */
+            parsed: boolean;
+            /** Version */
+            version: number;
+        };
+        /**
+         * ResumeUploadIn
+         * @description Upload one résumé (base64 so no multipart dependency).
+         */
+        ResumeUploadIn: {
+            /** Content B64 */
+            content_b64: string;
+            /**
+             * Content Type
+             * @default application/pdf
+             */
+            content_type: string;
+            /** Filename */
+            filename?: string | null;
+        };
+        /**
+         * ResumeUploadOut
+         * @description Result of ingesting + parsing one résumé.
+         */
+        ResumeUploadOut: {
+            /** Candidate Id */
+            candidate_id: string;
+            /** Parse Run Id */
+            parse_run_id: string;
+            /** Parsed */
+            parsed: boolean;
+            /** Resume Id */
+            resume_id: string;
+        };
+        /**
+         * ReviewFlagOut
+         * @description An advisory, data-quality flag (never auto-rejects; not fraud detection).
+         */
+        ReviewFlagOut: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Severity */
+            severity: string;
+        };
+        /** TeamMemberOut */
+        TeamMemberOut: {
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
             /** Status */
             status: string;
         };
@@ -99,6 +906,245 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listCandidates: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createCandidate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulkUploadResumes: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkResumeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResumeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getCandidate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recordConsent: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentEventIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    uploadResume: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResumeUploadIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeUploadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getDashboardStats: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardStats"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -115,6 +1161,471 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthStatus"];
+                };
+            };
+        };
+    };
+    getAudience: {
+        parameters: {
+            query?: {
+                requisition_id?: string | null;
+                min_fit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudienceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getOutreachStats: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutreachStatsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getPlan: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listProposals: {
+        parameters: {
+            query?: {
+                candidate_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createProposal: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listRequisitions: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequisitionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createRequisition: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequisitionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequisitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getRequisition: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                requisition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequisitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getJdCompleteness: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                requisition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JdCompletenessOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extractJdSkills: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                requisition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractedSkillsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getRequisitionMatches: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                requisition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequisitionMatchesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getJdSkills: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                requisition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JdSkillOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replaceJdSkills: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                requisition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JdSkillsReplace"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JdSkillOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listTeamMembers: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

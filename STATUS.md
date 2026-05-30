@@ -43,7 +43,7 @@ infra/             ✅ Terraform skeleton    db/ ✅ leak-probe fixtures + RLS p
 
 ---
 
-## 🔭 Phase 1 — ManFriday: integrated résumé DB + JD matching + outreach — NEXT
+## 🔭 Phase 1 — ManFriday: integrated résumé DB + JD matching + outreach — IN PROGRESS
 **Re-scoped 2026-05-29 (owner):** one **integrated product**, not a wedge/premium split — résumé
 database + JD→candidate matching + compliant outreach in a single per-seat plan. The matching engine
 is algorithmic (improves as résumés/JDs/feedback accumulate) but the **UI never says "AI"**. Reuses
@@ -53,7 +53,7 @@ the Phase-0 spine (encrypted résumés, consent ledger, audit, RLS) so everythin
 data, inert actions; IA + file hierarchy in [`docs/WEDGE_UI.md`](docs/WEDGE_UI.md)). Backend wiring below is still ⬜.
 - ✅ Design system + app shell (nav, theming, a11y) — shadcn source-in-repo
 - ✅ Résumé / candidate database — list · search/filter (UI) · **detail** · immutable version display
-- ✅ Candidate detail — **review-area flags** (advisory) · **cross-org proposal history** · **multi-org membership** · consent
+- ✅ Candidate detail — **review-area flags** (advisory) · **within-org proposal history** (across the org's clients/reqs, never across orgs) · consent
 - ✅ Bulk résumé import (drag-drop UI · parsing/encrypt/review queue) — worker wiring ⬜
 - ✅ Requisition intake + **detail** — weighted **core/nice skills** (reorderable) · **JD completeness score** · **top matches** (ranked)
 - ✅ Candidate **fit detail** — transparent fit breakdown · review areas · human triage · tiered Q&A + answer keys
@@ -61,12 +61,14 @@ data, inert actions; IA + file hierarchy in [`docs/WEDGE_UI.md`](docs/WEDGE_UI.m
 - ✅ Recruiter dashboard · ✅ Recruiter login (email + password + TOTP) · ✅ Settings (plan/billing · team · compliance)
 
 **Backend / compliance:**
-- ⬜ Candidate + resume CRUD + search APIs (FastAPI, RLS-scoped, run through the router seam)
-- ⬜ Comms service — email send (provider TBD) · **CAN-SPAM** (unsubscribe + sender ID) · bounce/track
-- ⬜ Consent capture → activate the `consent_ledger` (WP 0.2 stub)
+- ✅ Deterministic résumé parser + Arq parse job (bytes → reproducible non-PII `parsed_jsonb` + `parse_run`, RLS-scoped + audited)
+- ✅ Candidate + résumé CRUD (single + bulk upload), requisitions + weighted JD skills, transparent skill-overlap matching, JD completeness, proposals, outreach audience/stats, dashboard — FastAPI, RLS-scoped, OpenAPI→TS contract regenerated
+- ✅ Consent capture → activates the `consent_ledger` (WP 0.2 stub); audience is opted-in-only (CAN-SPAM)
+- 🔭 Wire the web `api` data provider (`DATA_SOURCE=api`) + `force-dynamic` to these endpoints
+- ⬜ Comms service — email **send** (provider TBD) · **CAN-SPAM** (unsubscribe + sender ID) · bounce/track  *(send deliberately not built — ⚖️ provider DPA/ZDR + policy)*
 - ⚖️ Outreach adverse-impact — *who* gets emailed for a req is selection-adjacent → log now, monitor later
 - ⬜ Recruiter login UI (email + password + TOTP) wiring the WP 0.10 auth seam
-- ⬜ Billing / tier scaffold ($10 wedge vs premium)
+- ⬜ Billing / tier scaffold (pricing owner-gated)
 
 **Spike:** email deliverability + the consent/unsubscribe loop.
 
