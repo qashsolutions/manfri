@@ -89,12 +89,16 @@ scale + SSO/SCIM + ATS · durable agentic continuous assessment & RAG-at-scale �
 
 ---
 
-## Infra (firming up — 2026-05-29)
-- **Vercel** — Next.js BFF (preview deploy per PR).
-- **Supabase** — managed **Postgres 16 + pgvector**. **Our compliance layer runs on top** (non-BYPASSRLS
-  role + `SET LOCAL` RLS GUCs, the baseline migration, ObjectStore, KMS-envelope); Supabase **Storage**
-  slots behind the existing `ObjectStore` interface; in-house EdDSA-JWT auth retained. Supersedes the
-  Neon assumption (D8). Confirm Supabase US region + DPA before real candidate PII.
+## Infra (firming up — 2026-05-30)
+- **Supabase** — managed **Postgres 16 + pgvector**, project provisioned (`us-east-2`). ✅ **DB validated**:
+  the baseline migration applies cleanly to the live DB and the full test suite (85) + cross-tenant leak
+  probe run **against Supabase** — `manfriday_app` is non-BYPASSRLS and sees 0 rows without the org GUC.
+  Runbook + validator: [`docs/SUPABASE.md`](docs/SUPABASE.md), `db/supabase_validate.py` (synthetic data;
+  reads gitignored `services/api/.env.cloud`). **Our compliance layer runs on top** (non-BYPASSRLS role +
+  `SET LOCAL` RLS GUCs, ObjectStore, KMS-envelope); in-house EdDSA-JWT auth retained; Supabase **Storage**
+  slots behind the existing `ObjectStore` (1.6). Supersedes Neon (D8). Confirm US region + DPA before real PII.
+- **Vercel** — Next.js BFF (preview deploy per PR). **Deferred to 1.7** — not needed for DB validation or
+  running the app from localhost against Supabase; it only adds a public URL / preview deploys.
 - Local dev stand-ins (filesystem object store, local-KEK, local Postgres/Redis) swap to cloud by config.
 
 ## Open decisions (⚖️ owner / counsel)
