@@ -23,8 +23,40 @@
 
 ---
 
+## Core Objective & Tenancy (north star)
+
+> **The single objective.** Every plan, design, build, and test step is measured against this; work that maps
+> to **none** of these capabilities is **scope creep** — flag it before building (see [§16](#16-working-conventions-for-claude)).
+> **Live coverage scorecard** (DONE / PARTIAL / NOT-BUILT per capability, with code citations + named gaps):
+> [`OBJECTIVE.md`](OBJECTIVE.md). This is the one canonical objective — [`docs/PRD.md`](docs/PRD.md) §1 and
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) point here rather than restate it.
+
+**A recruiter in an org can:**
+
+1. **Store** all the org's candidate résumés (org-isolated), and **browse / filter** them by **skills, years of
+   experience, location, and vertical**.
+2. Have the AI **screen a job posting into CORE (must-have) vs NICE-to-have skills**.
+3. **Adjust** those skills — reorder / reprioritize, reweight, and **add** new core/nice skills learned off-platform.
+4. **Map + rank** the org's résumés against a JD by **core / nice coverage**.
+5. Have the AI **flag likely fakeness / inflation** in résumés (**advisory** — never auto-rejects; a human decides).
+6. **Mass-email** candidates for a given job posting.
+
+### Tenancy & visibility (implemented — state, don't change)
+
+- **One org per user; many users per org.** A user belongs to exactly one org (a staffing agency).
+- **Every user sees ALL of the org's résumés** — no per-recruiter or per-client visibility scoping.
+- **The same candidate's résumé may exist independently in multiple orgs** — incidental duplication; **no global
+  candidate identity**, no cross-org link.
+- **An org's data is never visible to another org** — Postgres RLS keyed on the `org_id` Supabase-Auth JWT claim,
+  proven by the cross-org leak test (`packages/db/scripts/isolation-test.ts`, run on live Supabase: 0 leaks).
+
+(Restates [§6 Personas & Tenancy](#6-personas--tenancy-model) — the load-bearing detail lives there.)
+
+---
+
 ## Table of Contents
 
+0. [Core Objective & Tenancy (north star)](#core-objective--tenancy-north-star)
 1. [Problem Statement](#1-problem-statement)
 2. [Goal](#2-goal)
 3. [The Thesis](#3-the-thesis)
@@ -272,6 +304,10 @@ the 15-question screening generator, and outreach send. Live tracker: [`STATUS.m
 
 ## 16. Working Conventions for Claude
 
+- **Measure every step against the Core Objective.** Before any plan, design, build, or test, check it against
+  the six capabilities in [Core Objective & Tenancy](#core-objective--tenancy-north-star). If a piece of work
+  maps to **none** of them, call it out as **scope creep first** and confirm before building. Keep
+  [`OBJECTIVE.md`](OBJECTIVE.md)'s coverage scorecard current as capabilities move DONE/PARTIAL/NOT-BUILT.
 - **Lean is the point.** Don't reintroduce the dropped compliance/infra stack (provenance tables, redaction
   seam, crypto-shred, hash-chain, demographics, adverse-impact, AWS, Temporal, WorkOS, Arq/Redis, Neon). When a
   choice is between "more infra" and "ship the loop," ship the loop.

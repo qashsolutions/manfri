@@ -172,6 +172,22 @@ A follow-up pass confirmed the rewritten docs specify the four core Phase-1 beha
   for Phase-2 embeddings (§11). Aligned the same naming in `CLAUDE.md` (§8 note + §9 stack row) and
   `ROADMAP.md` (Phase-2 + honest-notes mentions).
 
+## Core Objective + coverage scorecard (2026-06-01)
+
+Documented the project's north-star objective and a living, honest build scorecard. Docs-only.
+- **`CLAUDE.md`** — added a top section **"Core Objective & Tenancy (north star)"** (the six recruiter
+  capabilities + the implemented tenancy/visibility model), added a `0.` TOC entry linking to it, and added a
+  **§16 working convention**: every plan/design/build/test step is measured against the six capabilities, and
+  work mapping to none is flagged as **scope creep first**.
+- **`OBJECTIVE.md` (new)** — the canonical objective (mirrored) + a **coverage scorecard**: DONE 2 (map/rank #4,
+  authenticity flags #5) · PARTIAL 3 (store+browse done but **filter NOT-BUILT** incl. **`vertical` has no
+  field**; JD extraction **deterministic/all-core, "make robust" planned**; skills **reorder/reweight done but
+  ADD not in the UI** — route accepts it) · NOT-BUILT 1 (**mass email** — audience only). Notes **bulk upload
+  deferred**, and lists the built **15-question screening feature** flagged **"confirm core vs secondary"** (not
+  one of the six). Every claim cites code + names the gap.
+- **`docs/PRD.md` §1** + **`docs/ARCHITECTURE.md` §1** — added a "Canonical objective" pointer so there is
+  **one** objective statement (both defer to `CLAUDE.md`/`OBJECTIVE.md` instead of restating it).
+
 ## Not changed (out of scope for this docs-only pass)
 - **Code & infra:** `web/`, `services/` (the Python backend being retired), `packages/`, `infra/`, `db/` —
   untouched. No migrations run, no Supabase connection made.

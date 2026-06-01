@@ -32,6 +32,11 @@
 
 ## 1. Executive Summary
 
+> **Canonical objective.** The north-star objective (the six recruiter capabilities) + the tenancy model are
+> defined once in [`CLAUDE.md` → Core Objective & Tenancy](../CLAUDE.md#core-objective--tenancy-north-star),
+> with a live build scorecard in [`OBJECTIVE.md`](../OBJECTIVE.md). This document describes **how** that
+> objective is built; it does not restate it.
+
 ManFriday is a **lean recruiter tool** for staffing agencies in software/technical staffing — its first vertical. One org (a staffing agency) holds many recruiters; **every recruiter in an org sees all of that org's candidates and résumés**, and each org's data is strictly invisible to every other org. The core loop is small and concrete: recruiters create accounts, upload résumés (single and bulk) that get **parsed into structured fields**, upload JDs that get split into **CORE vs NICE weighted skills with a completeness score**, **match and rank** candidates against a JD with a transparent lexical skill-overlap score, generate **15 grounded screening questions** (5 simple / 5 medium / 5 hard) each with a model answer key, set **lightweight triage** (a candidate status plus a per-proposal outcome), and run **mass email outreach** with a simple consent/unsubscribe flag.
 
 Three things make the product defensible and durable without heavyweight machinery. First, **matching is transparent** — a quoted arithmetic formula over evidence (skills present vs. required), never an opaque "fit: 78." Second, **a human recruiter decides** — the tool suggests, assists, surfaces advisory flags, and ranks, but never auto-rejects a candidate. Third, the product **captures decisions, corrections, and outcomes from day one** ("capture data now, learn later") so later phases can improve parsing, ranking, and matching from real usage.

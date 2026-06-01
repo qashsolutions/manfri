@@ -27,6 +27,11 @@
 
 ## 1. Vision & One-Liner
 
+> **Canonical objective.** The project's north-star objective (the six capabilities a recruiter can do) + the
+> tenancy model live in [`CLAUDE.md` → Core Objective & Tenancy](../CLAUDE.md#core-objective--tenancy-north-star),
+> with a live build scorecard in [`OBJECTIVE.md`](../OBJECTIVE.md). There is **one** objective statement; this
+> PRD elaborates the requirements behind it rather than restating it.
+
 **ManFriday is a lean recruiter tool** — a résumé database, advisory authenticity flags, JD→candidate matching, a 15-question screening pack, lightweight triage, and mass candidate outreach — all **transparent and human-decided**, that **learns over time from the feedback and outcomes recruiters capture**.
 
 It is built for staffing agencies (the tenant) and the recruiters inside them. The product turns a stack of résumés plus a job description into a ranked shortlist with a defensible, plain-English score, screening questions a recruiter can actually use, and an outreach list — without pretending to be an opaque auto-screener and without auto-rejecting anyone. **Software / technical staffing is the first vertical.**
