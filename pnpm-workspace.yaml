@@ -4,7 +4,12 @@ packages:
   - web
   - packages/*
 # Native deps with install scripts we explicitly trust (pnpm blocks builds by
-# default). sharp backs next/image; unrs-resolver backs the ESLint import resolver.
+# default). sharp backs next/image; unrs-resolver backs the ESLint import resolver;
+# esbuild backs tsx (the TS script runner for @manfriday/db migrate/seed/tests).
 allowBuilds:
+  # canvas is an optional native dep pulled transitively by the PDF lib (pdfjs); we only
+  # extract text, which needs no canvas rendering — explicitly do NOT build it.
+  canvas: false
+  esbuild: true
   sharp: true
   unrs-resolver: true

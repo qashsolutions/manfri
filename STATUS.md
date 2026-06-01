@@ -1,107 +1,75 @@
 # ManFriday — Build Status & Execution Plan
 
-> Living dashboard (updated 2026-05-29). Pairs with [`CLAUDE.md`](CLAUDE.md) (invariants/anchor),
+> Living dashboard (updated 2026-05-31). Pairs with [`CLAUDE.md`](CLAUDE.md) (invariants/anchor),
+> [`EXTRACTION_REPORT.md`](EXTRACTION_REPORT.md) (what the current code actually contains),
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/ROADMAP.md`](docs/ROADMAP.md), [`docs/PRD.md`](docs/PRD.md), [`docs/DECISIONS.md`](docs/DECISIONS.md).
-> Legend: ✅ done · 🔭 next · ⬜ planned · ⚖️ needs owner/counsel
+> Legend: ✅ done · 🔭 next · ⬜ planned
 
-## The goal (unchanged)
-Explainable, human-in-the-loop, **EEOC-defensible** candidate screening — every score / question / triage
-reproducible, evidence-backed, audited, human-decided. **The screening intelligence is the moat.**
+## The goal
+A **lean recruiter tool** — résumé database + authenticity flags + JD→candidate matching + 15-question screening
++ lightweight triage + mass outreach — on **TypeScript + Supabase + Vercel**, that recruiters use daily and that
+**learns from captured feedback** over time. Transparent, human-decided; **not** EEOC-regulated software.
 
-## Go-to-market: wedge → premium
-Staffing agencies already pay **~$23/user/mo** for two commodity features: **mass candidate email** + a
-**resume database**. We lead with those — but **compliant + encrypted by default** (riding the Phase-0
-spine) — as a **~$10/user wedge tier**, and sell the **explainable AI screening as the premium tier**.
-The wedge wins adoption; the intelligence is the differentiator. The wedge is GTM, **not** the goal.
-
----
-
-## ✅ Phase 0 — Foundations & Compliance Skeleton  (DONE)
-Branch `phase-0-foundations` · **PR #1** · **CI green** (js · python · db-gates · container) · **47 tests** · mypy strict + ruff.
-
-**Monorepo (built):**
-```
-web/               ✅ Next.js 15 BFF — lib/auth (EdDSA JWT + iron-session), lib/api (typed client)
-services/api/      ✅ FastAPI — db (RLS models + baseline migration) · router · redaction · audit
-                      · provenance · crypto · auth · telemetry · ingestion
-services/workers/  ✅ Arq ingestion worker (egress-free; tenant-scoped jobs)
-packages/contracts ✅ OpenAPI 3.1 (FastAPI-emitted) → generated TS client (CI drift gate)
-packages/prompts   ✅ versioned prompt templates (git = version pin)
-infra/             ✅ Terraform skeleton    db/ ✅ leak-probe fixtures + RLS p95 benchmark
-.github/workflows/ ✅ CI: js · python · db-gates · container
-```
-
-**Work packages — ✅ all 14:**
-✅ 0.1 scaffold/CI/IaC · ✅ 0.2 RLS spine · ✅ 0.3 leak probe (SQL/pgvector-KNN/worker/PgBouncer)
-✅ 0.4 provenance + tall `score` · ✅ 0.5 append-only audit · ✅ 0.6 immutable resume + object store
-✅ 0.7 PII envelope enc + crypto-shred · ✅ 0.8 Presidio redaction · ✅ 0.9 model router (echo)
-✅ 0.10 EdDSA auth → RLS + TOTP · ✅ 0.11 Arq+Redis ingestion worker · ✅ 0.12 OpenAPI drift gate
-✅ 0.13 OTel/Sentry/flags · ✅ 0.14 exit review
-
-**Invariants live + tested:** ✅ #2 provenance · ✅ #3 RLS isolation · ✅ #4 redaction-before-egress · ✅ #5 append-only audit · ✅ #11 PII-at-rest + crypto-shred
-**Exit criteria:** ✅ leak probe · ✅ 100% AI-writes carry a run-id · ✅ p95 RLS ≈0.1 ms · ✅ audit chain verifies · ✅ walking skeleton
+## Direction (ratified 2026-05-31): the lean pivot
+We are moving **off** the heavyweight, EEOC-compliant, AWS-hosted design and **onto** a lean TypeScript stack on
+Supabase + Vercel. **Dropped:** EEOC posture (adverse-impact/4-5ths, demographics, adverse-action notices),
+Presidio redaction-before-egress, per-tenant envelope encryption / crypto-shred, hash-chained audit, AWS
+(Fargate/KMS/S3/VPC), Neon, Temporal, WorkOS, Redis/Arq, Terraform. **Kept:** the Next.js UI, strict org
+isolation via RLS, the transparent matcher, the deterministic parser + 49-skill lexicon, the advisory-flags
+pattern, lightweight human-set triage, consent-based outreach. The **good design ports; the heavy infra does not.**
 
 ---
 
-## 🔭 Phase 1 — ManFriday: integrated résumé DB + JD matching + outreach — IN PROGRESS
-**Re-scoped 2026-05-29 (owner):** one **integrated product**, not a wedge/premium split — résumé
-database + JD→candidate matching + compliant outreach in a single per-seat plan. The matching engine
-is algorithmic (improves as résumés/JDs/feedback accumulate) but the **UI never says "AI"**. Reuses
-the Phase-0 spine (encrypted résumés, consent ledger, audit, RLS) so everything ships compliant.
+## What exists today (the port-from baseline)
 
-**UI — real Next.js 15 + shadcn/ui + Tailwind v4, in `web/`** (flagship **mockups** built — synthetic
-data, inert actions; IA + file hierarchy in [`docs/WEDGE_UI.md`](docs/WEDGE_UI.md)). Backend wiring below is still ⬜.
-- ✅ Design system + app shell (nav, theming, a11y) — shadcn source-in-repo
-- ✅ Résumé / candidate database — list · search/filter (UI) · **detail** · immutable version display
-- ✅ Candidate detail — **review-area flags** (advisory) · **within-org proposal history** (across the org's clients/reqs, never across orgs) · consent
-- ✅ Bulk résumé import (drag-drop UI · parsing/encrypt/review queue) — worker wiring ⬜
-- ✅ Requisition intake + **detail** — weighted **core/nice skills** (reorderable) · **JD completeness score** · **top matches** (ranked)
-- ✅ Candidate **fit detail** — transparent fit breakdown · review areas · human triage · tiered Q&A + answer keys
-- ✅ Mass candidate outreach — composer (merge fields · CAN-SPAM footer) · audience · history
-- ✅ Recruiter dashboard · ✅ Recruiter login (email + password + TOTP) · ✅ Settings (plan/billing · team · compliance)
+The current codebase is **Python (FastAPI + Arq) + a Next.js UI**. It is the thing being **rebuilt in TypeScript**,
+not the go-forward design. A full, code-grounded inventory is in [`EXTRACTION_REPORT.md`](EXTRACTION_REPORT.md).
+Headlines:
 
-**Backend / compliance:**
-- ✅ Deterministic résumé parser + Arq parse job (bytes → reproducible non-PII `parsed_jsonb` + `parse_run`, RLS-scoped + audited)
-- ✅ Candidate + résumé CRUD (single + bulk upload), requisitions + weighted JD skills, transparent skill-overlap matching, JD completeness, proposals, outreach audience/stats, dashboard — FastAPI, RLS-scoped, OpenAPI→TS contract regenerated
-- ✅ Consent capture → activates the `consent_ledger` (WP 0.2 stub); audience is opted-in-only (CAN-SPAM)
-- ✅ Web `api` data provider wired (`DATA_SOURCE=api`, server-side JWT mint) + `force-dynamic` on data pages; mock stays the dev/CI default. Own-org list shows candidate name (decrypted); contact stays detail-only. Unbuilt surfaces (screening Q&A = Phase 2; email-send/campaigns = gated) throw a clear "not in this phase"
-- ⬜ Comms service — email **send** (provider TBD) · **CAN-SPAM** (unsubscribe + sender ID) · bounce/track  *(send deliberately not built — ⚖️ provider DPA/ZDR + policy)*
-- ⚖️ Outreach adverse-impact — *who* gets emailed for a req is selection-adjacent → log now, monitor later
-- ⬜ Recruiter login UI (email + password + TOTP) wiring the WP 0.10 auth seam
-- ⬜ Billing / tier scaffold (pricing owner-gated)
-
-**Spike:** email deliverability + the consent/unsubscribe loop.
+- ✅ **Next.js 15 UI (`web/`)** — dashboard · login · candidates (+detail, +bulk import) · requisitions (+detail) ·
+  outreach · settings · screening. Behind a `DATA_SOURCE=mock|api` seam (mock is the dev default). **This stays.**
+- ✅ **Working in Python today** (to be ported to TS): org-isolated CRUD, deterministic résumé parser + 49-skill
+  lexicon, transparent skill-overlap matcher (`0.8·core + 0.2·nice`), JD completeness, advisory review flags,
+  proposals, consent-based outreach **audience** (no send), all RLS-scoped; 23 API endpoints; 85 tests.
+- ⚠️ **Being retired:** the Python `services/api` + `services/workers`, plus the Python-era compliance machinery
+  (run-provenance tables, Presidio redaction, envelope crypto, hash-chained audit) — **not ported**.
+- ⛔ **Not built anywhere yet:** real LLM/embedding calls (router is echo-only today), embeddings/pgvector
+  retrieval, the 15-question screening generator, authenticity-flag analysis as a sub-agent set, outreach **send**.
 
 ---
 
-## ⬜ Phase 2 — Explainable Screening  (premium tier)  ·  *[= original ROADMAP Phase 1 / MVP]*
-JD → CORE/NICE weighted skills → transparent fitment sub-scores w/ evidence → tiered Q&A + JSON answer
-keys → human GREEN/AMBER/RED triage. The differentiator / upsell. (Router WP 0.9, provenance, and
-redaction are already built — this is where they get real prompts + scoring logic.)
+## 🔭 Phase 1 — the real loop, live on Supabase + Vercel (NEXT — TS rebuild)
+The TypeScript rebuild stands up the everyday recruiter loop on the lean stack. Plan: [`docs/PHASE_1_BUILD.md`](docs/PHASE_1_BUILD.md).
 
-## ⬜ Phase 3+  ·  *(original ROADMAP Phases 2–6, shifted one)*
-Adverse-impact monitoring & bias auditing (the scale gate — now also covers **outreach**) · multi-tenant
-scale + SSO/SCIM + ATS · durable agentic continuous assessment & RAG-at-scale · client preference learning
-· hardening / isolated-tier / regulatory breadth.
+- ⬜ **Supabase project** — Postgres 16 + pgvector + Storage + Auth; schema with **RLS keyed on the `org_id` JWT claim**.
+- ⬜ **Org + recruiter auth** — Supabase Auth; all recruiters in an org share the org's data.
+- ⬜ **Résumé upload (single + bulk) → parse** into structured fields (deterministic v1; port the Python parser + lexicon to TS).
+- ⬜ **Authenticity flags at upload** — bounded sub-agent checks (deterministic rules: implausible
+  experience↔skill-count, timeline inconsistencies, duplicates; optional LLM analysis) → **advisory** flags; recruiter decides.
+- ⬜ **JD upload → CORE/NICE weighted skills + completeness score**.
+- ⬜ **Match & rank** the org's candidates vs a JD (transparent skill overlap; port the matcher to TS).
+- ⬜ **Screening questions** — generate **15** (5 simple / 5 medium / 5 hard) grounded in résumé + JD, each with a model answer key; recruiter-graded, AI-assist optional.
+- ⬜ **Lightweight triage** — recruiter-set `candidate.status` + `proposal.outcome`; per `(candidate × req)`.
+- ⬜ **Mass outreach send** — email provider + consent/unsubscribe (CAN-SPAM). **Send is in scope now** (no longer counsel-gated).
+- ⬜ **Capture feedback/outcomes** from day one.
 
-> **Phase mapping:** original ROADMAP Phase 1 → now **Phase 2**; originals 2–6 → 3–7. `ROADMAP.md` /
-> `ARCHITECTURE.md` phase numbers get reconciled in a docs pass; **this file is the live execution sequence.**
+## ⬜ Phase 2 — accuracy upgrades
+Embeddings / hybrid matching via **pgvector + an embedding API**, better parsing, feedback-tuned ranking.
+
+## ⬜ Phase 3 — learn over time
+The capture-feedback → improve loop. *Optional later:* deeper agents, ATS integration, more verticals.
 
 ---
 
-## Infra (firming up — 2026-05-30)
-- **Supabase** — managed **Postgres 16 + pgvector**, project provisioned (`us-east-2`). ✅ **DB validated**:
-  the baseline migration applies cleanly to the live DB and the full test suite (85) + cross-tenant leak
-  probe run **against Supabase** — `manfriday_app` is non-BYPASSRLS and sees 0 rows without the org GUC.
-  Runbook + validator: [`docs/SUPABASE.md`](docs/SUPABASE.md), `db/supabase_validate.py` (synthetic data;
-  reads gitignored `services/api/.env.cloud`). **Our compliance layer runs on top** (non-BYPASSRLS role +
-  `SET LOCAL` RLS GUCs, ObjectStore, KMS-envelope); in-house EdDSA-JWT auth retained; Supabase **Storage**
-  slots behind the existing `ObjectStore` (1.6). Supersedes Neon (D8). Confirm US region + DPA before real PII.
-- **Vercel** — Next.js BFF (preview deploy per PR). **Deferred to 1.7** — not needed for DB validation or
-  running the app from localhost against Supabase; it only adds a public URL / preview deploys.
-- Local dev stand-ins (filesystem object store, local-KEK, local Postgres/Redis) swap to cloud by config.
+## Infra
+- **Supabase** — Postgres 16 + pgvector + **Storage** + **Auth**. Org isolation = **RLS on the `org_id` Supabase
+  Auth JWT claim**. Supersedes Neon and the old non-BYPASSRLS-role + `SET LOCAL`-GUC pattern. Setup: [`docs/SUPABASE.md`](docs/SUPABASE.md).
+- **Vercel** — hosts the Next.js app **and** the TypeScript backend (Route Handlers / Server Actions).
+- **Background jobs** — TS-friendly pattern (Supabase scheduled functions / Inngest / Trigger.dev / QStash / Vercel cron); exact pick is a rebuild decision.
+- **Removed:** AWS (Fargate/KMS/S3/VPC), Terraform, Redis/Arq, Temporal, WorkOS.
 
-## Open decisions (⚖️ owner / counsel)
-- **Wedge packaging** — confirm $10 wedge vs premium feature split + billing model.
-- **Mass-outreach compliance** — CAN-SPAM, candidate consent model, outreach adverse-impact policy, email provider (ZDR/DPA for candidate data).
-- **Original ⚖️ items** — D2 demographics · D3 agency↔client liability · D5 retention/deletion · D7 super-admin/BYOK (counsel before real PII).
+## Open decisions (see [`docs/DECISIONS.md`](docs/DECISIONS.md))
+- **Email provider** for outreach send (deliverability + CAN-SPAM) — pick during the Phase-1 build.
+- **Per-candidate cost ceiling** (D6) — provisional ≤ ~$0.20; confirm at volume.
+- **Vendor ToS / Privacy Policy + CAN-SPAM** (D3) — light counsel touch, not a launch gate.
+- Most prior items (stack, tenancy, vertical, taxonomy, retention) are **ratified**; the EEOC/legal blockers are **removed**.

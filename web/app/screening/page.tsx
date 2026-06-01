@@ -7,7 +7,6 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -31,8 +30,13 @@ const TRIAGE = [
   { label: "Red", dot: "bg-destructive" },
 ];
 
-export default async function MatchDetailPage() {
-  const m = await getMatchDetail();
+export default async function MatchDetailPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ req?: string; candidate?: string }>;
+}) {
+  const { req, candidate } = await searchParams;
+  const m = await getMatchDetail(req, candidate);
   const composite = Math.round(m.subScores.reduce((a, x) => a + x.weight * x.score, 0));
 
   return (
@@ -197,17 +201,24 @@ export default async function MatchDetailPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {m.questions.map((q, i) => (
-              <div key={q.tier}>
+              <div key={`${q.tier}-${i}`}>
                 {i > 0 && <Separator className="mb-3" />}
                 <div className="flex items-start gap-3">
                   <Badge variant={TIER_VARIANT[q.tier]} className="mt-0.5 shrink-0">
                     {q.tier}
                   </Badge>
-                  <p className="flex-1 text-sm">{q.q}</p>
-                  <Button variant="ghost" size="sm" className="shrink-0">
-                    <FileText className="size-4" />
-                    Answer key
-                  </Button>
+                  <div className="flex-1 space-y-1.5">
+                    <p className="text-sm">{q.q}</p>
+                    <details className="group">
+                      <summary className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                        <FileText className="size-3.5" />
+                        Answer key
+                      </summary>
+                      <p className="mt-1.5 rounded-md border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
+                        {q.answer}
+                      </p>
+                    </details>
+                  </div>
                 </div>
               </div>
             ))}
