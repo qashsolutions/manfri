@@ -1,3 +1,6 @@
+// Render at request time — real data under DATA_SOURCE=api; never prerender an API call.
+export const dynamic = "force-dynamic";
+
 import { ArrowUpRight, Briefcase, Mail, TrendingUp, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -5,7 +8,13 @@ import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { type CandidateStatus, candidates, requisitions, statusLabel, stats } from "@/lib/sample-data";
+import {
+  type CandidateStatus,
+  getStats,
+  listCandidates,
+  listRequisitions,
+  statusLabel,
+} from "@/lib/data";
 
 const STATUS_VARIANT = {
   new: "secondary",
@@ -14,13 +23,6 @@ const STATUS_VARIANT = {
   submitted: "success",
 } as const satisfies Record<CandidateStatus, "secondary" | "default" | "warning" | "success">;
 
-const STAT_CARDS = [
-  { label: "Candidates", value: stats.candidates.toLocaleString(), delta: "+128 this month", icon: Users },
-  { label: "Active requisitions", value: String(stats.activeReqs), delta: "3 closing soon", icon: Briefcase },
-  { label: "Emails sent (30d)", value: stats.emailsSent30d.toLocaleString(), delta: "+18% vs prev", icon: Mail },
-  { label: "Response rate", value: stats.responseRate, delta: "+4 pts", icon: TrendingUp },
-];
-
 function initials(name: string) {
   return name
     .split(" ")
@@ -28,7 +30,20 @@ function initials(name: string) {
     .join("");
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const [stats, candidates, requisitions] = await Promise.all([
+    getStats(),
+    listCandidates(),
+    listRequisitions(),
+  ]);
+
+  const STAT_CARDS = [
+    { label: "Candidates", value: stats.candidates.toLocaleString(), delta: "+128 this month", icon: Users },
+    { label: "Active requisitions", value: String(stats.activeReqs), delta: "3 closing soon", icon: Briefcase },
+    { label: "Emails sent (30d)", value: stats.emailsSent30d.toLocaleString(), delta: "+18% vs prev", icon: Mail },
+    { label: "Response rate", value: stats.responseRate, delta: "+4 pts", icon: TrendingUp },
+  ];
+
   return (
     <AppShell active="dashboard" title="Dashboard">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -66,8 +81,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-1">
               {candidates.slice(0, 5).map((c) => (
-                <div
+                <Link
                   key={c.id}
+                  href={`/candidates/${c.id}`}
                   className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent/50"
                 >
                   <div className="flex size-9 items-center justify-center rounded-full bg-accent text-sm font-medium text-accent-foreground">
@@ -80,7 +96,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <Badge variant={STATUS_VARIANT[c.status]}>{statusLabel[c.status]}</Badge>
-                </div>
+                </Link>
               ))}
             </CardContent>
           </Card>
@@ -91,7 +107,7 @@ export default function DashboardPage() {
               <CardDescription>Pipeline by role</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {requisitions.map((r) => (
+              {requisitions.slice(0, 4).map((r) => (
                 <div key={r.id} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{r.title}</span>
@@ -109,13 +125,18 @@ export default function DashboardPage() {
         <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/40">
           <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
             <div className="flex-1">
-              <p className="font-semibold">Unlock explainable AI screening</p>
+              <p className="font-semibold">3 requisitions have new matches ready</p>
               <p className="text-sm text-muted-foreground">
-                CORE/NICE skill extraction, evidence-backed fitment scores, and tiered screening
-                questions — every output auditable and human-decided. Premium tier.
+                Upload a job description and ManFriday ranks the best-fit candidates from your
+                database — every match evidence-backed and human-decided.
               </p>
             </div>
-            <Button>Explore premium</Button>
+            <Button asChild>
+              <Link href="/requisitions">
+                Review matches
+                <ArrowUpRight className="size-4" />
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       </div>

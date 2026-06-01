@@ -10,7 +10,9 @@ from __future__ import annotations
 from app.crypto.envelope import (
     PiiUnrecoverableError,
     crypto_shred,
+    decrypt_pii,
     get_candidate_pii,
+    get_org_dek,
     set_candidate_pii,
 )
 from app.crypto.keys import KeyProvider, LocalKekProvider, get_key_provider
@@ -20,7 +22,9 @@ __all__ = [
     "LocalKekProvider",
     "PiiUnrecoverableError",
     "crypto_shred",
+    "decrypt_pii",
     "get_candidate_pii",
     "get_key_provider",
+    "get_org_dek",
     "set_candidate_pii",
 ]

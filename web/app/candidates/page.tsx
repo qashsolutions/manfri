@@ -1,11 +1,15 @@
+// Render at request time — real data under DATA_SOURCE=api; never prerender an API call.
+export const dynamic = "force-dynamic";
+
 import { Filter, Plus, Search, Upload } from "lucide-react";
+import Link from "next/link";
 
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { type CandidateStatus, candidates, statusLabel, stats } from "@/lib/sample-data";
+import { type CandidateStatus, getStats, listCandidates, statusLabel } from "@/lib/data";
 
 const STATUS_VARIANT = {
   new: "secondary",
@@ -23,7 +27,9 @@ function initials(name: string) {
 
 const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground";
 
-export default function CandidatesPage() {
+export default async function CandidatesPage() {
+  const [candidates, stats] = await Promise.all([listCandidates(), getStats()]);
+
   return (
     <AppShell active="candidates" title="Candidates">
       <div className="space-y-4">
@@ -36,9 +42,11 @@ export default function CandidatesPage() {
             <Filter className="size-4" />
             Filters
           </Button>
-          <Button variant="outline" size="sm">
-            <Upload className="size-4" />
-            Import résumés
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/candidates/import">
+              <Upload className="size-4" />
+              Import résumés
+            </Link>
           </Button>
           <Button size="sm">
             <Plus className="size-4" />
@@ -67,7 +75,9 @@ export default function CandidatesPage() {
                         {initials(c.name)}
                       </div>
                       <div>
-                        <p className="font-medium">{c.name}</p>
+                        <Link href={`/candidates/${c.id}`} className="font-medium hover:underline">
+                          {c.name}
+                        </Link>
                         <p className="text-xs text-muted-foreground">
                           {c.title} · {c.location}
                         </p>

@@ -43,25 +43,32 @@ infra/             ✅ Terraform skeleton    db/ ✅ leak-probe fixtures + RLS p
 
 ---
 
-## 🔭 Phase 1 — Wedge: Compliant Talent CRM  (~$10/user) — NEXT
-The paid entry product. Reuses the Phase-0 spine (encrypted resumes, consent ledger, audit, RLS) so the
-commodity ships **compliant + encrypted** — the differentiator on the cheap tier.
+## 🔭 Phase 1 — ManFriday: integrated résumé DB + JD matching + outreach — IN PROGRESS
+**Re-scoped 2026-05-29 (owner):** one **integrated product**, not a wedge/premium split — résumé
+database + JD→candidate matching + compliant outreach in a single per-seat plan. The matching engine
+is algorithmic (improves as résumés/JDs/feedback accumulate) but the **UI never says "AI"**. Reuses
+the Phase-0 spine (encrypted résumés, consent ledger, audit, RLS) so everything ships compliant.
 
-**UI — real Next.js 15 + shadcn/ui + Tailwind v4, in `web/`:**
-- ⬜ Design system + app shell (premium nav, theming, a11y) — shadcn source-in-repo
-- ⬜ Resume / candidate database — list · search/filter · detail · immutable versions (on WP 0.6)
-- ⬜ Bulk resume import (drag-drop → ingestion worker WP 0.11 → encrypted store + audit)
-- ⬜ Requisition intake (capture the JD; CORE/NICE extraction is premium — Phase 2)
-- ⬜ Mass candidate outreach — templated email composer · recipient selection · send + track
-- ⬜ Recruiter dashboard (pipeline counts, recent activity)
+**UI — real Next.js 15 + shadcn/ui + Tailwind v4, in `web/`** (flagship **mockups** built — synthetic
+data, inert actions; IA + file hierarchy in [`docs/WEDGE_UI.md`](docs/WEDGE_UI.md)). Backend wiring below is still ⬜.
+- ✅ Design system + app shell (nav, theming, a11y) — shadcn source-in-repo
+- ✅ Résumé / candidate database — list · search/filter (UI) · **detail** · immutable version display
+- ✅ Candidate detail — **review-area flags** (advisory) · **within-org proposal history** (across the org's clients/reqs, never across orgs) · consent
+- ✅ Bulk résumé import (drag-drop UI · parsing/encrypt/review queue) — worker wiring ⬜
+- ✅ Requisition intake + **detail** — weighted **core/nice skills** (reorderable) · **JD completeness score** · **top matches** (ranked)
+- ✅ Candidate **fit detail** — transparent fit breakdown · review areas · human triage · tiered Q&A + answer keys
+- ✅ Mass candidate outreach — composer (merge fields · CAN-SPAM footer) · audience · history
+- ✅ Recruiter dashboard · ✅ Recruiter login (email + password + TOTP) · ✅ Settings (plan/billing · team · compliance)
 
 **Backend / compliance:**
-- ⬜ Candidate + resume CRUD + search APIs (FastAPI, RLS-scoped, run through the router seam)
-- ⬜ Comms service — email send (provider TBD) · **CAN-SPAM** (unsubscribe + sender ID) · bounce/track
-- ⬜ Consent capture → activate the `consent_ledger` (WP 0.2 stub)
+- ✅ Deterministic résumé parser + Arq parse job (bytes → reproducible non-PII `parsed_jsonb` + `parse_run`, RLS-scoped + audited)
+- ✅ Candidate + résumé CRUD (single + bulk upload), requisitions + weighted JD skills, transparent skill-overlap matching, JD completeness, proposals, outreach audience/stats, dashboard — FastAPI, RLS-scoped, OpenAPI→TS contract regenerated
+- ✅ Consent capture → activates the `consent_ledger` (WP 0.2 stub); audience is opted-in-only (CAN-SPAM)
+- ✅ Web `api` data provider wired (`DATA_SOURCE=api`, server-side JWT mint) + `force-dynamic` on data pages; mock stays the dev/CI default. Own-org list shows candidate name (decrypted); contact stays detail-only. Unbuilt surfaces (screening Q&A = Phase 2; email-send/campaigns = gated) throw a clear "not in this phase"
+- ⬜ Comms service — email **send** (provider TBD) · **CAN-SPAM** (unsubscribe + sender ID) · bounce/track  *(send deliberately not built — ⚖️ provider DPA/ZDR + policy)*
 - ⚖️ Outreach adverse-impact — *who* gets emailed for a req is selection-adjacent → log now, monitor later
 - ⬜ Recruiter login UI (email + password + TOTP) wiring the WP 0.10 auth seam
-- ⬜ Billing / tier scaffold ($10 wedge vs premium)
+- ⬜ Billing / tier scaffold (pricing owner-gated)
 
 **Spike:** email deliverability + the consent/unsubscribe loop.
 
@@ -82,12 +89,16 @@ scale + SSO/SCIM + ATS · durable agentic continuous assessment & RAG-at-scale �
 
 ---
 
-## Infra (firming up — 2026-05-29)
-- **Vercel** — Next.js BFF (preview deploy per PR).
-- **Supabase** — managed **Postgres 16 + pgvector**. **Our compliance layer runs on top** (non-BYPASSRLS
-  role + `SET LOCAL` RLS GUCs, the baseline migration, ObjectStore, KMS-envelope); Supabase **Storage**
-  slots behind the existing `ObjectStore` interface; in-house EdDSA-JWT auth retained. Supersedes the
-  Neon assumption (D8). Confirm Supabase US region + DPA before real candidate PII.
+## Infra (firming up — 2026-05-30)
+- **Supabase** — managed **Postgres 16 + pgvector**, project provisioned (`us-east-2`). ✅ **DB validated**:
+  the baseline migration applies cleanly to the live DB and the full test suite (85) + cross-tenant leak
+  probe run **against Supabase** — `manfriday_app` is non-BYPASSRLS and sees 0 rows without the org GUC.
+  Runbook + validator: [`docs/SUPABASE.md`](docs/SUPABASE.md), `db/supabase_validate.py` (synthetic data;
+  reads gitignored `services/api/.env.cloud`). **Our compliance layer runs on top** (non-BYPASSRLS role +
+  `SET LOCAL` RLS GUCs, ObjectStore, KMS-envelope); in-house EdDSA-JWT auth retained; Supabase **Storage**
+  slots behind the existing `ObjectStore` (1.6). Supersedes Neon (D8). Confirm US region + DPA before real PII.
+- **Vercel** — Next.js BFF (preview deploy per PR). **Deferred to 1.7** — not needed for DB validation or
+  running the app from localhost against Supabase; it only adds a public URL / preview deploys.
 - Local dev stand-ins (filesystem object store, local-KEK, local Postgres/Redis) swap to cloud by config.
 
 ## Open decisions (⚖️ owner / counsel)

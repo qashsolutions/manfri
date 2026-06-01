@@ -1,12 +1,15 @@
-"""FastAPI entrypoint — Phase 0 walking skeleton.
+"""FastAPI entrypoint.
 
-Only a liveness/readiness probe lives here. The tenancy/RLS layer (WP 0.2),
-provenance spine (WP 0.4), audit chain (WP 0.5), redaction stage (WP 0.8), and
-the multi-model router (WP 0.9) are wired into this app in their respective work
-packages. No employment-decision logic ships in Phase 0.
+The Phase 0 skeleton (health + auth smoke test) plus the Phase 1 product API:
+candidates, résumés, requisitions, deterministic skill-overlap matching, proposals,
+and outreach selection. Every product router is RLS-scoped to the verified org
+(invariant #3) and carries no opaque scoring, triage automation, or fraud detection
+— matching is a transparent weighted sum (invariant #6) and flags are advisory
+(invariant #8); a human decides (invariant #1). The explainable screening loop
+(LLM-scored fitment, tiered Q&A, GREEN/AMBER/RED) is the later premium phase.
 
 FastAPI's emitted OpenAPI schema is the source of truth for the BFF↔FastAPI
-contract; the drift gate against ``packages/contracts`` is added in WP 0.12.
+contract; the WP 0.12 drift gate keeps ``packages/contracts`` in sync.
 """
 
 from __future__ import annotations
@@ -16,18 +19,22 @@ from typing import Annotated
 from fastapi import Depends, FastAPI
 from pydantic import BaseModel
 
+from app.api import ROUTERS
 from app.auth import AuthClaims, require_claims
 from app.telemetry import configure_tracing, init_sentry, instrument_fastapi
 
 app = FastAPI(
     title="ManFriday Internal API",
     version="0.0.0",
-    description="Phase 0 foundations skeleton. No decision logic yet.",
+    description="Internal AI/services API. Phase 1 product surface over the Phase 0 spine.",
 )
 
 configure_tracing()
 init_sentry()
 instrument_fastapi(app)
+
+for _router in ROUTERS:
+    app.include_router(_router)
 
 
 class HealthStatus(BaseModel):
