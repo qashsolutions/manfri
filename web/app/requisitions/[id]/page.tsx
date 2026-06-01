@@ -6,7 +6,6 @@ import {
   Briefcase,
   Building2,
   CheckCircle2,
-  GripVertical,
   Mail,
   MapPin,
   Pencil,
@@ -32,6 +31,8 @@ import {
   type ReqStatus,
   reqStatusLabel,
 } from "@/lib/data";
+import type { SkillInput } from "@/app/requisitions/[id]/types";
+import { SkillsEditor } from "@/app/requisitions/[id]/skills-editor";
 
 const REQ_STATUS_VARIANT = {
   open: "success",
@@ -62,8 +63,12 @@ export default async function RequisitionDetailPage({
     getTopMatches(id),
   ]);
 
-  const core = jdSkills.filter((s) => s.tier === "core");
-  const nice = jdSkills.filter((s) => s.tier === "nice");
+  const skillsForEditor: SkillInput[] = jdSkills.map((s, i) => ({
+    name: s.name,
+    tier: s.tier,
+    weight: s.weight,
+    sort_order: i,
+  }));
   const missing = jdCompleteness.items.filter((i) => !i.present);
 
   return (
@@ -117,43 +122,17 @@ export default async function RequisitionDetailPage({
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
-            {/* Required skills (weighted, reorderable) */}
+            {/* Required skills — live reorder/reweight (client component → PUT /skills → re-rank) */}
             <Card>
-              <CardHeader className="flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Required skills</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Drag to reprioritize — weighting drives how candidates are matched.
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Re-run matches
-                </Button>
+              <CardHeader>
+                <CardTitle>Required skills</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  The recruiter-confirmed rubric — drag to reprioritize, edit weights, toggle
+                  CORE/nice, then save. Top matches re-rank against it.
+                </p>
               </CardHeader>
-              <CardContent className="space-y-5">
-                {[
-                  { label: "Core", items: core },
-                  { label: "Nice to have", items: nice },
-                ].map((group) => (
-                  <div key={group.label} className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      {group.label}
-                    </p>
-                    {group.items.map((s) => (
-                      <div key={s.name} className="flex items-center gap-3">
-                        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/50" />
-                        <span className="w-40 shrink-0 truncate text-sm font-medium">{s.name}</span>
-                        <Progress
-                          value={s.weight * 100}
-                          indicatorClassName={group.label === "Core" ? "bg-primary" : "bg-muted-foreground/40"}
-                        />
-                        <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-                          {Math.round(s.weight * 100)}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+              <CardContent>
+                <SkillsEditor reqId={id} initial={skillsForEditor} />
               </CardContent>
             </Card>
 

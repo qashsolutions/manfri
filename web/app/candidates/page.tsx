@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { type CandidateStatus, getStats, listCandidates, statusLabel } from "@/lib/data";
+import { createCandidateAction } from "@/app/candidates/actions";
 
 const STATUS_VARIANT = {
   new: "secondary",
@@ -48,11 +49,44 @@ export default async function CandidatesPage() {
               Import résumés
             </Link>
           </Button>
-          <Button size="sm">
-            <Plus className="size-4" />
-            Add candidate
-          </Button>
         </div>
+
+        {/* Add candidate — real intake (server action → POST /api/v1/candidates → revalidate) */}
+        <Card className="p-4">
+          <form action={createCandidateAction} className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[200px] flex-1 space-y-1.5">
+              <label htmlFor="cand-name" className="text-xs font-medium text-muted-foreground">
+                Name
+              </label>
+              <Input id="cand-name" name="name" placeholder="Full name" />
+            </div>
+            <div className="min-w-[200px] flex-1 space-y-1.5">
+              <label htmlFor="cand-email" className="text-xs font-medium text-muted-foreground">
+                Email
+              </label>
+              <Input id="cand-email" name="email" type="email" placeholder="name@example.com" />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="cand-consent" className="text-xs font-medium text-muted-foreground">
+                Consent
+              </label>
+              <select
+                id="cand-consent"
+                name="consent_state"
+                defaultValue="pending"
+                className="flex h-9 rounded-md border border-input bg-card px-3 text-sm shadow-sm"
+              >
+                <option value="pending">Pending</option>
+                <option value="opted_in">Opted in</option>
+                <option value="unsubscribed">Unsubscribed</option>
+              </select>
+            </div>
+            <Button type="submit" size="sm">
+              <Plus className="size-4" />
+              Add candidate
+            </Button>
+          </form>
+        </Card>
 
         <Card className="overflow-hidden p-0">
           <table className="w-full border-collapse text-sm">

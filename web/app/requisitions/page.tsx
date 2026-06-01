@@ -1,15 +1,7 @@
 // Render at request time — real data under DATA_SOURCE=api; never prerender an API call.
 export const dynamic = "force-dynamic";
 
-import {
-  Briefcase,
-  Building2,
-  ChevronDown,
-  ListChecks,
-  MapPin,
-  Plus,
-  Users,
-} from "lucide-react";
+import { Briefcase, Building2, ListChecks, MapPin, Plus, Users } from "lucide-react";
 import Link from "next/link";
 
 import { AppShell } from "@/components/app-shell";
@@ -19,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { listRequisitions, type ReqStatus, reqStatusLabel } from "@/lib/data";
+import { createRequisitionAction } from "@/app/requisitions/actions";
 
 const STATUS_VARIANT = {
   open: "success",
@@ -43,17 +36,6 @@ function Field({
   );
 }
 
-function FauxSelect({ value }: { value: string }) {
-  return (
-    <button
-      type="button"
-      className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-card px-3 text-sm shadow-sm transition-colors hover:bg-accent/40"
-    >
-      <span>{value}</span>
-      <ChevronDown className="size-4 text-muted-foreground" />
-    </button>
-  );
-}
 
 export default async function RequisitionsPage() {
   const requisitions = await listRequisitions();
@@ -132,40 +114,50 @@ export default async function RequisitionsPage() {
                 <CardTitle>New requisition</CardTitle>
                 <CardDescription>Capture the role. Sourcing and outreach follow.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <Field label="Job title">
-                  <Input placeholder="e.g. Senior Backend Engineer" />
-                </Field>
-                <Field label="Client">
-                  <div className="relative">
-                    <Building2 className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                    <Input className="pl-8" placeholder="Company served" />
+              <form action={createRequisitionAction}>
+                <CardContent className="space-y-4">
+                  <Field label="Job title">
+                    <Input name="title" required placeholder="e.g. Senior Backend Engineer" />
+                  </Field>
+                  <Field label="Client">
+                    <div className="relative">
+                      <Building2 className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                      <Input className="pl-8" name="client" placeholder="Company served" />
+                    </div>
+                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Location">
+                      <Input name="location" placeholder="City / Remote" />
+                    </Field>
+                    <Field label="Openings">
+                      <Input name="openings" type="number" defaultValue={1} min={1} />
+                    </Field>
                   </div>
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Location">
-                    <Input placeholder="City / Remote" />
+                  <Field label="Employment type">
+                    <select
+                      name="employment_type"
+                      defaultValue="full_time"
+                      className="flex h-9 w-full items-center rounded-md border border-input bg-card px-3 text-sm shadow-sm"
+                    >
+                      <option value="full_time">Full-time</option>
+                      <option value="contract">Contract</option>
+                      <option value="part_time">Part-time</option>
+                    </select>
                   </Field>
-                  <Field label="Openings">
-                    <Input type="number" defaultValue={1} min={1} />
+                  <Field label="Job description">
+                    <Textarea
+                      name="jd_text"
+                      className="min-h-32"
+                      placeholder="Paste the JD here. On create, CORE/NICE skills are extracted and scored."
+                    />
                   </Field>
+                </CardContent>
+                <div className="flex items-center justify-end gap-2 border-t border-border p-4">
+                  <Button type="submit" size="sm">
+                    Create requisition
+                  </Button>
                 </div>
-                <Field label="Employment type">
-                  <FauxSelect value="Full-time" />
-                </Field>
-                <Field label="Job description">
-                  <Textarea
-                    className="min-h-32"
-                    placeholder="Paste the JD here. Originals are stored immutably and versioned."
-                  />
-                </Field>
-              </CardContent>
-              <div className="flex items-center justify-end gap-2 border-t border-border p-4">
-                <Button variant="ghost" size="sm">
-                  Save draft
-                </Button>
-                <Button size="sm">Create requisition</Button>
-              </div>
+              </form>
             </Card>
 
             {/* What happens next */}

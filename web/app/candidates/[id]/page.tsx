@@ -33,10 +33,12 @@ import {
   getCandidateDetail,
   getProposalHistory,
   getReviewFlags,
+  listRequisitions,
   type ProposalOutcome,
   proposalOutcomeLabel,
   statusLabel,
 } from "@/lib/data";
+import { createProposalAction, recordConsentAction, uploadResumeAction } from "@/app/candidates/[id]/actions";
 
 const STATUS_VARIANT = {
   new: "secondary",
@@ -84,10 +86,11 @@ export default async function CandidateDetailPage({
   const candidate = await getCandidate(id);
   if (!candidate) notFound();
 
-  const [d, reviewFlags, proposalHistory] = await Promise.all([
+  const [d, reviewFlags, proposalHistory, requisitions] = await Promise.all([
     getCandidateDetail(id),
     getReviewFlags(id),
     getProposalHistory(id),
+    listRequisitions(),
   ]);
 
   return (
@@ -237,6 +240,62 @@ export default async function CandidateDetailPage({
               </CardContent>
             </Card>
 
+            {/* Propose to a requisition (human action, audited) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Propose to a requisition</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Record that you proposed this candidate to one of your reqs — it appears in the
+                  history above.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {requisitions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No requisitions yet — create one first.</p>
+                ) : (
+                  <form action={createProposalAction} className="flex flex-wrap items-end gap-3">
+                    <input type="hidden" name="candidate_id" value={candidate.id} />
+                    <div className="min-w-[200px] flex-1 space-y-1.5">
+                      <label htmlFor="prop-req" className="text-xs font-medium text-muted-foreground">
+                        Requisition
+                      </label>
+                      <select
+                        id="prop-req"
+                        name="requisition_id"
+                        className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm"
+                      >
+                        {requisitions.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="prop-outcome" className="text-xs font-medium text-muted-foreground">
+                        Outcome
+                      </label>
+                      <select
+                        id="prop-outcome"
+                        name="outcome"
+                        defaultValue="proposed"
+                        className="flex h-9 rounded-md border border-input bg-card px-3 text-sm shadow-sm"
+                      >
+                        <option value="proposed">Proposed</option>
+                        <option value="interviewing">Interviewing</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="hired">Hired</option>
+                      </select>
+                    </div>
+                    <Button type="submit" size="sm">
+                      <Target className="size-4" />
+                      Propose
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Activity */}
             <Card>
               <CardHeader>
@@ -294,6 +353,24 @@ export default async function CandidateDetailPage({
                     </Button>
                   </div>
                 ))}
+                <Separator />
+                <form action={uploadResumeAction} className="space-y-2">
+                  <input type="hidden" name="candidate_id" value={candidate.id} />
+                  <label htmlFor="resume-file" className="text-xs font-medium text-muted-foreground">
+                    Upload a résumé (PDF, DOCX, or text)
+                  </label>
+                  <input
+                    id="resume-file"
+                    name="file"
+                    type="file"
+                    accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                    className="block w-full text-xs file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-primary-foreground"
+                  />
+                  <Button type="submit" size="sm" variant="outline">
+                    <Upload className="size-4" />
+                    Upload &amp; parse
+                  </Button>
+                </form>
                 <p className="text-xs text-muted-foreground">
                   Uploads are immutable, content-hashed versions — a decision always pins the exact
                   version it was made against.
@@ -323,6 +400,28 @@ export default async function CandidateDetailPage({
                   <span className="text-muted-foreground">Updated</span>
                   <span className="font-medium">{d.consentUpdated}</span>
                 </div>
+                <Separator />
+                <form action={recordConsentAction} className="flex items-end gap-2">
+                  <input type="hidden" name="candidate_id" value={candidate.id} />
+                  <div className="flex-1 space-y-1.5">
+                    <label htmlFor="consent-event" className="text-xs font-medium text-muted-foreground">
+                      Record consent
+                    </label>
+                    <select
+                      id="consent-event"
+                      name="event"
+                      defaultValue="opted_in"
+                      className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm"
+                    >
+                      <option value="opted_in">Opt in</option>
+                      <option value="unsubscribed">Unsubscribe</option>
+                      <option value="pending">Set pending</option>
+                    </select>
+                  </div>
+                  <Button type="submit" size="sm" variant="outline">
+                    Save
+                  </Button>
+                </form>
                 <Separator />
                 <p className="flex items-start gap-2 text-xs text-muted-foreground">
                   <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-success" />
