@@ -361,6 +361,7 @@ export interface SubScore {
 export interface ScreeningQuestion {
   tier: "Simple" | "Medium" | "Hard";
   q: string;
+  answer: string; // model answer key the recruiter screens against
 }
 
 export const matchDetail = {
@@ -383,9 +384,9 @@ export const matchDetail = {
     { severity: "medium", label: "Employment gap", detail: "14-month gap (2023–2024) not explained." },
   ] as ReviewFlag[],
   questions: [
-    { tier: "Simple", q: "Walk through how you'd index a 50M-row Postgres table for a range query." },
-    { tier: "Medium", q: "Describe a service you migrated to event-driven — what broke, and why?" },
-    { tier: "Hard", q: "Design exactly-once processing across a partitioned queue. Trade-offs?" },
+    { tier: "Simple", q: "Walk through how you'd index a 50M-row Postgres table for a range query.", answer: "Looks for B-tree on the range column, covering/partial indexes, and understanding of selectivity and EXPLAIN ANALYZE." },
+    { tier: "Medium", q: "Describe a service you migrated to event-driven — what broke, and why?", answer: "Concrete migration story: ordering/idempotency issues, at-least-once delivery, backpressure, and how they were resolved." },
+    { tier: "Hard", q: "Design exactly-once processing across a partitioned queue. Trade-offs?", answer: "Idempotency keys + dedup store, transactional outbox, partition-key choice, and the throughput vs consistency trade-offs." },
   ] as ScreeningQuestion[],
 };
 

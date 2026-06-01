@@ -1,225 +1,198 @@
 # ManFriday — Product Requirements Document (PRD)
 
-> Companion to [`ARCHITECTURE.md`](ARCHITECTURE.md) (how), [`ROADMAP.md`](ROADMAP.md) (when), [`DECISIONS.md`](DECISIONS.md) (open calls + proposed defaults), and [`PHASE_0.md`](PHASE_0.md) (the foundation build).
-> This PRD is the **what** and **for whom**. It assumes the proposed defaults in `DECISIONS.md`; if one is overridden, revisit the requirements that cite it.
+> Companion to [`ARCHITECTURE.md`](ARCHITECTURE.md) (how), [`ROADMAP.md`](ROADMAP.md) (when), [`DECISIONS.md`](DECISIONS.md) (open calls + ratified defaults), [`PHASE_1_BUILD.md`](PHASE_1_BUILD.md) (the build plan), and [`EXTRACTION_REPORT.md`](../EXTRACTION_REPORT.md) (what actually exists in the repo today).
+> This PRD is the **what** and **for whom**. It assumes the ratified defaults in `DECISIONS.md`; if one is overridden, revisit the requirements that cite it.
 >
-> **Scope of this PRD:** the whole product at a glance, then a precise **MVP (Phase 1) cut line**. Requirements are tagged **[MVP]** (Phase 1), **[P2]**…**[P6]** (later phase), or **[ALL]** (cross-cutting invariant). IDs (`FR-*`, `NFR-*`) are for traceability.
+> **Scope of this PRD:** the whole lean product at a glance, then a precise **Phase 1 cut line**. Requirements are tagged **[P1]** (Phase 1), **[P2]** / **[P3]** (later phase), or **[ALL]** (cross-cutting invariant). IDs (`FR-*`, `NFR-*`) are for traceability.
+>
+> **Pivot note.** ManFriday is a **lean recruiter tool** on **TypeScript + Supabase + Vercel**. The Next.js UI in `web/` is built and stays; the backend is being (re)built in TypeScript (Next.js Route Handlers / Server Actions) against Supabase. The earlier heavyweight EEOC-compliance platform posture (adverse-impact monitoring, segregated demographics, hash-chained provenance, redaction-before-scoring, AWS hosting) has been **dropped**. Candidate data is PII and is handled pragmatically (GDPR/CCPA-grade soft/hard delete + CAN-SPAM), not under a formal EEOC defense.
 
 ---
 
 ## Table of Contents
 1. [Vision & One-Liner](#1-vision--one-liner)
 2. [Target Users & Jobs-to-Be-Done](#2-target-users--jobs-to-be-done)
-3. [Product Principles (non-negotiable)](#3-product-principles-non-negotiable)
+3. [Product Principles](#3-product-principles)
 4. [Product Scope by Phase](#4-product-scope-by-phase)
-5. [MVP Definition (Phase 1 cut line)](#5-mvp-definition-phase-1-cut-line)
+5. [Phase 1 Definition (cut line)](#5-phase-1-definition-cut-line)
 6. [Functional Requirements by Capability](#6-functional-requirements-by-capability)
 7. [Key User Flows](#7-key-user-flows)
-8. [Triage State Machine](#8-triage-state-machine)
+8. [Lightweight Triage](#8-lightweight-triage)
 9. [Non-Functional Requirements](#9-non-functional-requirements)
-10. [Success Metrics / KPIs](#10-success-metrics--kpis)
-11. [MVP Acceptance Criteria](#11-mvp-acceptance-criteria)
+10. [Success Metrics](#10-success-metrics)
+11. [Phase 1 Acceptance Criteria](#11-phase-1-acceptance-criteria)
 12. [Assumptions, Dependencies & Out-of-Scope](#12-assumptions-dependencies--out-of-scope)
 
 ---
 
 ## 1. Vision & One-Liner
 
-**ManFriday is multi-tenant AI for recruiting and candidate screening that gives recruiters an explainable, reproducible, human-decided screening loop** — turning a job description and a stack of resumes into evidence-backed fitment scores, tiered screening questions with answer keys, and a defensible GREEN/AMBER/RED triage — for both **staff-augmentation agencies** (one agency, many client companies) and **direct-hire companies**, on one codebase.
+**ManFriday is a lean recruiter tool** — a résumé database, advisory authenticity flags, JD→candidate matching, a 15-question screening pack, lightweight triage, and mass candidate outreach — all **transparent and human-decided**, that **learns over time from the feedback and outcomes recruiters capture**.
 
-The wedge is **trust and defensibility**: every score traces to evidence, every decision is made by a human and audited, and the platform is built to survive EEOC scrutiny — the opposite of an opaque "AI résumé screener."
+It is built for staffing agencies (the tenant) and the recruiters inside them. The product turns a stack of résumés plus a job description into a ranked shortlist with a defensible, plain-English score, screening questions a recruiter can actually use, and an outreach list — without pretending to be an opaque auto-screener and without auto-rejecting anyone. **Software / technical staffing is the first vertical.**
 
 ## 2. Target Users & Jobs-to-Be-Done
 
-(Full personas + permissions in [ARCHITECTURE → Personas](ARCHITECTURE.md). Summary here.)
-
 | User | Primary job-to-be-done |
 |---|---|
-| **Agency recruiter** *(primary MVP user)* | "Screen this stack of candidates against this JD, fast and defensibly, and give my client a shortlist I can stand behind." |
-| **Agency admin** | "Manage my team, my client relationships, and our scoring standards; prove we screen fairly." |
-| **Client hiring manager** | "Show me a vetted shortlist with the reasoning, let me give feedback, and don't waste my time." |
-| **Candidate** | "Let me submit my resume, control my data, and be assessed on my merits." |
-| **Compliance / auditor** | "Prove who decided what, on what basis, and that we aren't producing adverse impact." |
+| **Recruiter** *(primary user)* | "Find, screen, and rank candidates against this JD fast and transparently, generate questions to screen them, and reach out to the right people — all from one tool." |
+| **Org admin** | "Manage my agency's team and seats; everyone in my org shares the same candidate/req/outreach data." |
 
-**MVP focuses on the agency recruiter** (the daily user who feels the pain) at a **single design-partner agency** in the **software/technical staffing** vertical ([D11](DECISIONS.md#d11-initial-vertical--role-mix)).
+A **candidate** is a *contacted person*, not a user — candidates have **no app login in Phase 1**. (A candidate self-service surface is a possible later phase, not committed here.)
 
-## 3. Product Principles (non-negotiable)
+There is **no "client hiring manager" persona and no "compliance / auditor" persona** in this product. Within an org, all recruiters see all of the org's data; there is no per-recruiter or per-client visibility scoping.
 
-These are product requirements, not aspirations. They mirror the engineering invariants in [`CLAUDE.md` §4](../CLAUDE.md).
+## 3. Product Principles
 
-- **P-1 Human decides, AI suggests.** No candidate is ever auto-rejected or auto-advanced. A human sets GREEN/AMBER/RED with a reason code. **[ALL]**
-- **P-2 Every number has evidence.** No opaque "fit: 78." Each sub-score cites the resume/JD spans behind it. **[ALL]**
-- **P-3 Reproducible.** Re-running a score with the same pinned inputs yields the same result. **[ALL]**
-- **P-4 Auditable.** Every decision-affecting action is in an immutable, attributable trail. **[ALL]**
-- **P-5 Fair by construction.** Protected-class signals are excluded from scoring; the product is monitored for adverse impact (live from P2). **[ALL]**
-- **P-6 Tenant-isolated.** A user can never see another tenant's data — including via search/AI. **[ALL]**
-- **P-7 Don't over-automate the risky parts.** Authenticity verdicts and triage stay human; AI assists. **[ALL]**
+These are product requirements, not aspirations. They mirror the four engineering invariants in [`CLAUDE.md`](../CLAUDE.md) plus two product-level commitments.
+
+- **P-1 Org isolation is absolute. [ALL]** A recruiter can never see another org's data — including via search, matching, or vector similarity. Tenant isolation is enforced by Postgres Row-Level Security keyed on the `org_id` claim in the Supabase Auth JWT, on every tenant-scoped table (including pgvector).
+- **P-2 Human decides; the tool suggests. [ALL]** No candidate is ever auto-rejected or auto-advanced. The product surfaces matches, flags, questions, and answer keys; a recruiter makes every call.
+- **P-3 Capture data now, learn later. [ALL]** Recruiter decisions, overrides (e.g. skill re-tiering), screen grades, proposal outcomes, and feedback are captured from day one so later phases can tune matching and ranking.
+- **P-4 Plain, append-only audit. [ALL]** Decision-affecting actions are written to a simple append-only activity log (who did what, when). It is an activity trail, not a hash-chained legal record.
+- **P-5 Transparent matching.** Fit is a plain, inspectable formula (weighted CORE/NICE skill coverage), never an opaque "fit: 78" black box. The recruiter can see exactly which skills matched and which CORE skills are missing.
+- **P-6 Don't over-automate the risky parts.** Authenticity/plausibility judgments and triage stay human. The tool produces advisory flags and suggestions; it never converts them into an automated reject or an automated triage state.
 
 ## 4. Product Scope by Phase
 
-The product is delivered in phases (detail in [`ROADMAP.md`](ROADMAP.md)). At a product level:
-
 | Phase | What the *product* can do |
 |---|---|
-| **0** | (Foundation — no user-facing product yet.) A recruiter can log in to an isolated tenant, upload a resume, and see it stored immutably + audited. |
-| **1 ★ MVP** | The full single-agency screening loop: JD → weighted CORE/NICE skills → evidence-backed fitment → tiered Q&A + answer keys → **human** triage → redacted shortlist + feedback capture. |
-| **2** | Adverse-impact dashboards, faithful adverse-action notices, demographic self-ID collection — the platform becomes *defensible at volume*. |
-| **3** | Many tenants; enterprise SSO/SCIM; the redaction wall between agency recruiters and client hiring managers; ATS import; commercial parser. |
-| **4** | Continuous background agents re-ranking the talent pool; advisory fraud/authenticity flags; hardened cited RAG. |
-| **5** | Per-client preference learning as a bounded, audited personalization delta. |
-| **6** | Isolated tier, private inference, multi-jurisdiction breadth, candidate self-service depth. |
+| **1 — Real loop, live** | The full recruiter loop running on Supabase + Vercel: org/recruiter accounts → résumé upload (single + bulk) → deterministic parse → advisory authenticity flags at upload → JD upload → CORE/NICE weighted skills + completeness → transparent match/rank → 15 screening questions (5/5/5) with answer keys, recruiter-graded → lightweight triage → mass outreach email with consent/unsubscribe → feedback/outcome capture. |
+| **2 — Accuracy upgrades** | Better matching (embeddings + hybrid BM25/dense retrieval via pgvector), better résumé/JD parsing, and feedback-tuned ranking that uses the outcomes captured in Phase 1. |
+| **3 — Learn over time** | Deeper assistance (optional agents), ATS integration, additional verticals beyond software/technical staffing, and richer feedback-driven personalization. |
 
-## 5. MVP Definition (Phase 1 cut line)
+## 5. Phase 1 Definition (cut line)
 
-**MVP = the smallest slice that delivers daily recruiter value AND proves the "explainable, reproducible, human-decided" thesis end to end, producing the audited decision events every later phase learns from.**
+**Phase 1 = the smallest slice that runs the real recruiter loop end to end on Supabase + Vercel, transparent and human-decided, capturing the decisions and outcomes that Phase 2/3 learn from.**
 
-### In scope (MVP)
-- One design-partner **agency** tenant (RLS on, but onboarded as a single tenant), software/technical roles.
-- **JD ingestion** (paste + file upload) → CORE/NICE weighted skill extraction, span-grounded, recruiter-overridable, version-pinned.
-- **Candidate ingestion** (PDF/DOCX upload + talent-pool reuse within the org) → parse → normalize → dedupe.
-- **Fitment scoring** as a transparent weighted composite of evidence-backed sub-scores against a frozen per-req `ScoringSpec`, on a **redacted** profile.
-- **Screening Q&A generation:** per-(skill, tier) pool of simple/medium/hard questions with **structured JSON answer keys/rubrics**, grounded in JD ∩ resume.
-- **Recruiter screen capture + manual grading** (AI-assist optional, no auto-grade) → **human GREEN/AMBER/RED** with reason code.
-- **Redacted shortlist view + structured feedback capture** (the minimal "client" surface; [D9](DECISIONS.md#d9-un-owned-spine-components)).
-- **Talent pool** with per-(candidate × req) screens; RED is non-terminal.
-- Full **provenance + audit + redaction** inherited from Phase 0.
+### In scope (Phase 1)
+- **Org + recruiter accounts** via Supabase Auth; org isolation via RLS on the `org_id` JWT claim; all recruiters in an org share the org's data.
+- **Résumé ingestion** — single upload and bulk upload; deterministic parse into non-PII signal (skills, experience estimate); immutable versioned résumé rows; within-org dedupe by normalized email.
+- **Advisory authenticity / plausibility flags at upload** — deterministic data-quality and plausibility rules (implausible experience ↔ skill-count, timeline inconsistencies, duplicates, sparse/no-contact résumé); recruiter decides; never auto-reject.
+- **JD intelligence** — JD upload → CORE/NICE weighted skills + a completeness score. (Today's extractor suggests every found skill as CORE @ weight 1.0; the recruiter re-tiers and re-weights, and the recruiter's confirmed rubric is what matching reads.)
+- **Transparent match & rank** — `fit = 0.8·core_coverage + 0.2·nice_coverage`, 0–100, with the matched/missing-CORE breakdown visible.
+- **Screening Q&A** — generate **15 questions (5 simple / 5 medium / 5 hard)** grounded in the résumé + JD, each with a model **answer key**; the recruiter grades; AI-assist grading optional.
+- **Lightweight triage** — recruiter-set candidate pipeline status and proposal outcome (see [§8](#8-lightweight-triage)).
+- **Mass outreach email** — audience selection, a simple consent/unsubscribe flag, CAN-SPAM-compliant send. **Send is in scope.**
+- **Feedback & outcome capture** — proposal outcomes and recruiter corrections recorded for later learning.
+- **Data rights** — soft-delete + hard-delete-on-request for candidate PII.
 
-### Out of scope (MVP) — deferred, and we say so
-- Adverse-impact monitoring **at scale** (P2 — MVP runs under contractual cover, audit trail captures everything for retrospective analysis).
-- Enterprise SSO/SCIM (P3 — MVP uses in-house auth), multi-tenant onboarding at scale (P3).
-- ATS import/write-back (P3), commercial resume parser (P3).
-- Continuous background agents, fraud/authenticity detection, hardened RAG-at-scale (P4).
-- Client preference learning / personalized ranking (P5).
-- Async recorded video screening; candidate self-service portal depth (P6).
+### Out of scope (Phase 1) — deferred, and we say so
+- **Embeddings / hybrid semantic matching** (pgvector ANN + BM25 fusion) — **[P2]**. Phase 1 matching is exact case-insensitive skill overlap.
+- **Feedback-tuned ranking** (using captured outcomes to adjust scores/order) — **[P2]/[P3]**.
+- **Better parsing** (LLM-assisted extraction, OCR at volume) beyond the deterministic v1 parser — **[P2]**.
+- **Deeper agents, ATS integration, additional verticals** — **[P3]**.
+- Candidate self-service login; per-client / per-recruiter visibility scoping; any EEOC adverse-impact monitoring, demographics collection, or formal compliance tooling (intentionally not part of this product).
 
 ## 6. Functional Requirements by Capability
 
-Mapped to capability domains C1–C8 (ARCHITECTURE → Capability Map).
+Mapped to the lean capability domains C1–C8.
 
-### C1 — Requisition & JD Intelligence
-- **FR-1.1 [MVP]** Recruiter creates a requisition with metadata (role, seniority, location, employment type, client, comp band) and provides a JD via **paste or PDF/DOCX/HTML upload**.
-- **FR-1.2 [MVP]** The system parses the JD into a structured **Requirement Graph**: each requirement tagged **CORE/NICE**, assigned a **weight (0–1)**, normalized to the skill taxonomy, with an **evidence quote / char-span** in the JD.
-- **FR-1.3 [MVP]** Every extracted requirement is **span-grounded** — it must map to a verbatim substring of the JD; hallucinated requirements are rejected (hard gate).
-- **FR-1.4 [MVP]** The recruiter can **edit CORE/NICE labels and weights**; recruiter edits always win and are logged as training signal.
-- **FR-1.5 [MVP]** On confirmation, the weight set is **version-pinned** to the req (it *is* the scoring rubric).
-- **FR-1.6 [MVP]** High-legal-risk requirement types (work-auth, location, experience-year floors, language) are **flagged**; they cannot become hard CORE screen-outs without an admin override + recorded **job-relatedness justification**.
-- **FR-1.7 [P3]** Import JDs from ATS (Greenhouse/Lever/Ashby/Workday via Merge.dev).
+### C1 — Résumé Database & Ingestion
+- **FR-1.1 [P1]** Recruiter uploads résumés one at a time (PDF / DOCX / text); files are size-capped and malware-scanned.
+- **FR-1.2 [P1]** Recruiter uploads résumés in **bulk** (many files), one candidate created per file.
+- **FR-1.3 [P1]** Each résumé is **deterministically parsed** into non-PII signal: normalized skills (from the self-hosted skills lexicon), an experience-years estimate, link domains, and presence-only contact booleans. Raw email/phone are detected for the candidate record but not written into the parse output.
+- **FR-1.4 [P1]** Résumés are **immutable, versioned rows** — a re-upload for the same candidate creates a new version (with content hash + `is_current`), never an in-place edit.
+- **FR-1.5 [P1]** **Within-org dedupe by normalized email** — a new résumé matching an existing candidate's email attaches to that candidate. There is **no cross-org link**; the same person in two orgs is two unrelated records (no `candidate_identity` / shared-pool table).
+- **FR-1.6 [P2]** LLM-assisted parsing and OCR-at-volume for harder résumés.
 
-### C2 — Candidate Ingestion
-- **FR-2.1 [MVP]** Upload resumes (PDF native + scanned, DOCX); files are virus-scanned and parsed in a sandboxed worker.
-- **FR-2.2 [MVP]** Parse into a versioned `ParsedResume` with **per-field provenance** (source span, page, confidence). Resumes are **immutable versions** (new upload = new row).
-- **FR-2.3 [MVP]** **Dedupe** against the existing pool (name+email+phone+content-hash).
-- **FR-2.4 [MVP]** Capture **consent** at ingestion as an immutable ledger event; distinguish candidate-submitted vs recruiter-sourced ([D1](DECISIONS.md#d1-candidate-consent--cross-client-reuse-model)).
-- **FR-2.5 [MVP]** Reuse a parsed candidate across the org's reqs (the talent pool) under the consent model.
-- **FR-2.6 [P3]** OCR at volume via managed Document Intelligence; commercial parser backbone.
+### C2 — Authenticity Flags (advisory)
+- **FR-2.1 [P1]** At upload, a sub-agent runs **deterministic plausibility/quality checks** over the parsed résumé and surfaces advisory **flags** with a severity (e.g. no contact, no skills detected, sparse résumé, no experience signal, implausible experience ↔ skill-count, timeline inconsistency, suspected duplicate).
+- **FR-2.2 [ALL]** Authenticity flags are **advisory only** — they are **never** auto-rejections, are **never** folded into the fit number, and the recruiter decides what to do. (Optional LLM corroboration may be added later; it remains advisory.)
 
-### C3 — Fitment Scoring
-- **FR-3.1 [MVP]** Score each candidate against the **pinned `ScoringSpec`** on the defined parameters (CORE coverage, NICE coverage, depth/recency, domain match, experience-level fit, authenticity confidence *(reported separately)*, logistics fit).
-- **FR-3.2 [MVP]** Each parameter score carries **evidence spans** (resume/JD citations) and a short rationale — **no parameter is an unexplained number**.
-- **FR-3.3 [MVP]** The composite is a **transparent weighted sum** of the sub-scores; the breakdown is always visible.
-- **FR-3.4 [MVP]** Scoring runs on a **redacted** profile (no name/grad-year/school/address in inputs).
-- **FR-3.5 [MVP]** Every score links to a `scoring_run` pinning model + prompt + weights + input hash; **"regenerate this exact score" works**.
-- **FR-3.6 [MVP]** Authenticity confidence is **never silently folded** into the advance/reject decision.
-- **FR-3.7 [MVP]** The recruiter can **override** any sub-score or the composite (logged with reason).
+### C3 — JD Intelligence
+- **FR-3.1 [P1]** Recruiter creates a requisition with metadata (title, location, employment type, openings) and provides JD text.
+- **FR-3.2 [P1]** The system suggests skills found in the JD as **CORE/NICE weighted** rows. *Today's extractor suggests every found skill as `tier=core, weight=1.0`*; the recruiter **re-tiers and re-weights** them.
+- **FR-3.3 [P1]** **Recruiter override always wins.** Suggestions are not persisted until the recruiter confirms; the confirmed `jd_skill` set (name / tier / weight / sort order) is the rubric matching reads.
+- **FR-3.4 [P1]** The system computes a **JD completeness score** (0–100) over title / location / employment type / JD text length / CORE skill count / NICE skill count, with per-item hints.
 
-### C4 — Authenticity / Fraud Signals
-- **FR-4.1 [P4]** Surface advisory **signals** (inflated tenure, claims without project evidence, impossible timelines, template markers) as an immutable `IntegrityReport`.
-- **FR-4.2 [ALL]** Authenticity signals are **advisory only** — never auto-reject, never folded into fitment, never shown to clients. (Invariant holds even before C4 ships.)
-- **FR-4.3 [P4]** Candidate **right-to-respond** on MEDIUM/HIGH flags; AI-text detection is a weak corroborating signal only, never an accusation.
+### C4 — Matching & Ranking
+- **FR-4.1 [P1]** For a requisition, the system ranks candidates by a **transparent fit**: `fit = 0.8·core_coverage + 0.2·nice_coverage` (each coverage = weighted fraction of that tier's skills present; if only one tier exists, fit = that tier's coverage), rounded to a 0–100 integer.
+- **FR-4.2 [P1]** "Present" is a case-insensitive exact skill-name match; the breakdown returns matched skills and **missing CORE** skills so the score is fully inspectable. Ranking is `fit desc`, stable tie-break by candidate.
+- **FR-4.3 [P2]** Upgrade matching with **embeddings + hybrid (BM25 + dense) retrieval via pgvector** for semantic proximity, and feed captured feedback into ranking.
 
-### C5 — Screening Question & Answer-Key Generation
-- **FR-5.1 [MVP]** Generate, per relevant (skill, tier), a **pool of 3–5 questions** at **simple/medium/hard**, grounded in **JD-CORE ∩ resume claims**.
-- **FR-5.2 [MVP]** Each question has a **structured JSON answer key/rubric**: weighted expected points, acceptable synonyms, red flags, partial-credit guidance, score thresholds.
-- **FR-5.3 [MVP]** Difficulty is **Bloom-anchored** and separately verified by an LLM-as-judge check; bad questions are filtered.
-- **FR-5.4 [MVP]** The recruiter **curates** (edit/approve/regenerate) questions before use.
-- **FR-5.5 [MVP]** Answer keys are **role-gated** and reveals are audited (anti-leak).
-- **FR-5.6 [P2]** Questions pass a **bias review** (no protected-class-proxy probes) before use.
+### C5 — Screening Q&A
+- **FR-5.1 [P1]** For a candidate × requisition, generate **15 screening questions** — **5 simple, 5 medium, 5 hard** — grounded in the résumé + JD.
+- **FR-5.2 [P1]** Each question carries a structured **JSON answer key** (expected points / acceptable answers / notes) the recruiter screens against.
+- **FR-5.3 [P1]** The recruiter **grades** answers; **AI-assist grading is optional** ([D12](DECISIONS.md#d12-screening-administration--ai-assist-grading)) and never replaces the recruiter's call.
 
-### C6 — Triage & Screen Capture
-- **FR-6.1 [MVP]** Recruiter records the screen, grades answers **manually** against the rubric (AI-assist optional; **no auto-grade**, [D12](DECISIONS.md#d12-response-modality--ai-assist-grading)).
-- **FR-6.2 [MVP]** Recruiter sets **GREEN/AMBER/RED**; AI may *suggest* a state with rationale + evidence, but the **UI must not pre-select it**.
-- **FR-6.3 [MVP]** Setting any state requires a **reason code** (from a v1 controlled taxonomy, [D9](DECISIONS.md#d9-un-owned-spine-components)); RED requires affirmative human action.
-- **FR-6.4 [MVP]** Every transition writes an **append-only audit event** {actor, from, to, reason, timestamp, AI-suggestion-at-time, rubric/spec version}.
-- **FR-6.5 [MVP]** Triage is **per (candidate × req)**; the same candidate can be GREEN for one req and RED for another.
+### C6 — Triage
+- **FR-6.1 [P1]** The recruiter sets the candidate's **pipeline status** (`new → contacted → screening → submitted`) and a **proposal outcome** (`proposed / interviewing / rejected / hired`), per candidate × requisition.
+- **FR-6.2 [ALL]** Triage is **human-set**. There is **no GREEN/AMBER/RED state machine and no reason-code taxonomy** — just the simple status and outcome fields above ([D9](DECISIONS.md#d9-triage-states--feedback-capture)).
+- **FR-6.3 [P1]** A candidate's outcome on one requisition does not carry over to another — triage is per `(candidate × req)`.
 
-### C7 — Client Review & Feedback
-- **FR-7.1 [MVP]** Submit **GREEN** candidates as a **redacted shortlist** with rationale (no fraud signals, no RED candidates, no internal notes). **AMBER is never auto-submitted** ([D10](DECISIONS.md#d10-ats-write-back-placement-lifecycle--amber-auto-submit)).
-- **FR-7.2 [MVP]** Capture **structured + free-text client feedback** and interview outcome (the input boundary for later preference learning).
-- **FR-7.3 [P3]** Full client portal with per-client redaction-wall configuration enforced server-side.
+### C7 — Outreach
+- **FR-7.1 [P1]** Build a **mass outreach audience** (e.g. candidates above a fit threshold for a req, filtered by consent state).
+- **FR-7.2 [P1]** Send mass email to that audience, honoring a simple per-candidate **consent / unsubscribe flag** and **CAN-SPAM** requirements (unsubscribe link, identification). **Send is built.**
+- **FR-7.3 [P1]** Unsubscribes/opt-outs update the candidate's consent flag and exclude them from future sends.
 
-### C8 — Talent CRM & Preference Learning
-- **FR-8.1 [MVP]** Candidates are **first-class, req-independent** entities reusable across the org's reqs; freshness/consent TTLs apply.
-- **FR-8.2 [P4]** Background agents continuously re-assess and re-rank the pool against open reqs.
-- **FR-8.3 [P5]** Per-client **preference model** personalizes ranking as a **bounded delta** that can never cross GREEN/RED and is bias-screened before activation.
+### C8 — Talent CRM & Feedback Capture
+- **FR-8.1 [P1]** Candidates are **first-class, reusable entities within the org** — the same candidate can be matched and proposed against many of the org's requisitions.
+- **FR-8.2 [P1]** Proposal **outcomes** and recruiter **corrections** (skill re-tiering/re-weighting, triage changes) are **captured** so later phases can learn ([D10](DECISIONS.md#d10-placementoutcome-tracking)).
+- **FR-8.3 [P2]/[P3]** Use the captured feedback to **tune ranking** and personalize results over time.
 
 ## 7. Key User Flows
 
-**Flow A — Screen a candidate (the core loop) [MVP]:**
-`Recruiter creates req → pastes/uploads JD → reviews & confirms CORE/NICE weights → uploads/selects candidates → system scores each (evidence-backed) → recruiter reviews fitment breakdown → generates & curates tiered questions → conducts/records screen, grades answers → sets GREEN/AMBER/RED with reason → submits GREEN shortlist to client → records client feedback.`
+**Flow A — Screen a candidate (the core loop) [P1]:**
+`Recruiter creates a req → adds JD text → reviews suggested skills and re-tiers/re-weights CORE vs NICE → uploads/selects candidates → system ranks each by transparent fit (matched vs missing CORE visible) → recruiter reviews advisory flags → generates 15 screening questions (5/5/5) with answer keys → conducts/records the screen and grades answers → sets status / proposal outcome → adds qualifying candidates to an outreach audience.`
 
-**Flow B — Reuse a candidate for a new req [MVP]:**
-`Recruiter opens new req → searches talent pool (RLS-scoped) → selects existing candidate → system scores against the *new* req's ScoringSpec → independent triage (prior RED elsewhere does not carry over).`
+**Flow B — Reuse a candidate for a new req [P1]:**
+`Recruiter opens a new req → searches the org's candidate pool (RLS-scoped to the org) → selects an existing candidate → system ranks them against the new req's confirmed skill rubric → independent triage (an outcome on another req does not carry over).`
 
-**Flow C — Recruiter overrides extraction/score [MVP]:**
-`Recruiter flips a NICE→CORE label / adjusts a weight / overrides a sub-score → change logged as training signal + audit event → re-score uses the updated, re-pinned spec.`
+**Flow C — Recruiter overrides a skill tier/weight [P1]:**
+`Recruiter flips a suggested CORE skill to NICE (or adjusts its weight) → the change is captured and becomes the confirmed rubric → re-ranking uses the updated rubric. Recruiter override always wins over the suggestion.`
 
-## 8. Triage State Machine
+## 8. Lightweight Triage
 
-States: `UNSCREENED → SCREENING → {GREEN | AMBER | RED}`, plus `SUBMITTED`, `CLIENT_ACCEPTED`, `CLIENT_REJECTED`, `WITHDRAWN`.
+Triage in this product is **two simple, recruiter-set fields**, per `(candidate × req)`:
 
-- Only a **human** sets GREEN/AMBER/RED (AI suggests). **RED requires a reason.**
-- **AMBER → GREEN/RED** requires a re-screen or new evidence.
-- **RED is not terminal globally** — the candidate re-enters the pool for other reqs.
-- Agency admin can **override** a recruiter's state (logged with reason); the client cannot set internal triage but their accept/reject drives `CLIENT_*`.
-- Every transition is an append-only audit event feeding adverse-impact monitoring (live from P2).
+- **Candidate pipeline status:** `new → contacted → screening → submitted`.
+- **Proposal outcome:** `proposed → interviewing → rejected → hired`.
+
+There is **explicitly no GREEN/AMBER/RED state machine, no reason-code taxonomy, and no automated transition.** The recruiter sets these directly; the tool never sets them and never auto-rejects ([D9](DECISIONS.md#d9-triage-states--feedback-capture)). An outcome on one req is independent of any other req for the same candidate.
 
 ## 9. Non-Functional Requirements
 
-- **NFR-1 Explainability [ALL]** — every score/triage is reconstructable parameter-by-parameter from stored evidence + provenance.
-- **NFR-2 Reproducibility [ALL]** — identical pinned inputs → identical score (temp 0 + response cache). Target **100%**.
-- **NFR-3 Auditability [ALL]** — append-only, hash-chained audit; unbroken-chain verification job.
-- **NFR-4 Tenant isolation [ALL]** — RLS on every tenant table incl. pgvector; **0 cross-tenant leaks** in the CI probe.
-- **NFR-5 Security/PII [ALL]** — C3 PII envelope-encrypted; redaction-before-egress; ZDR-only providers; sandboxed parsing; prompt-injection defenses on resume text.
-- **NFR-6 Performance [MVP]** — JD extraction < 10s synchronous or graceful async; p95 DB query < 50ms with RLS on; score polling responsive.
-- **NFR-7 Cost [MVP]** — ≤ ~$0.20 per fully-screened candidate target; hard per-tenant token budget ([D6](DECISIONS.md#d6-per-candidate--per-req-cost-ceiling)).
-- **NFR-8 Accessibility [MVP]** — WCAG-grade UI primitives (Radix); ADA accommodation off-ramp at every gate.
-- **NFR-9 Data rights [ALL]** — consent ledger; crypto-shred deletion preserving de-identified decision metadata ([D5](DECISIONS.md#d5-retention-vs-deletion-policy)).
+- **NFR-1 Org isolation [ALL]** — RLS keyed on the `org_id` JWT claim on **every** tenant-scoped table, including pgvector. **0 cross-tenant leaks** is the bar (verified by a leak probe).
+- **NFR-2 Performance [P1]** — responsive UI; reasonable parse and match latency (parse and rank complete promptly for a normal stack; long-running bulk work runs in the background). No hard p95 SLA committed in Phase 1.
+- **NFR-3 Cost [P1]** — target **≤ ~$0.20 per screened candidate** including any optional LLM assistance ([D6](DECISIONS.md#d6-per-candidate--per-screen-cost-ceiling)).
+- **NFR-4 Accessibility [P1]** — WCAG-grade UI primitives (Radix/shadcn).
+- **NFR-5 Data rights [ALL]** — candidate PII supports **soft-delete and hard-delete on request**; outreach honors consent/unsubscribe and CAN-SPAM ([D5](DECISIONS.md#d5-data-retention--deletion)).
 
-## 10. Success Metrics / KPIs
+There are intentionally **no** NFRs for reproducibility-as-100%, hash-chained provenance, redaction-before-scoring, ZDR-only-providers, or adverse-impact / fair-by-construction monitoring — those belonged to the dropped EEOC posture.
 
-**MVP (Phase 1):**
-- A design-partner recruiter **completes a real screen unassisted**.
-- **Recruiter agreement with AI-suggested triage** is tracked *with evidence of genuine review* — sub-N-second accepts flagged as rubber-stamps (automation-bias guard).
-- **Span-grounding gate rejects ≥ 95%** of injected phantom requirements (test).
-- **Score reproducibility = 100%** (identical inputs → identical score).
-- JD extraction **< 10s** synchronous or graceful async.
-- **0 cross-tenant leaks** in the CI probe (inherited from Phase 0 gate).
-- **100% of AI writes carry a run id** (enforced by constraint).
+## 10. Success Metrics
 
-**Leading product signals (post-MVP):** time-to-shortlist per req, % candidates with complete evidence-backed scores, client feedback capture rate, talent-pool reuse rate.
+Phase 1 success is qualitative and loop-completion-focused:
+- A recruiter can **run Flow A end to end** on a real JD and a real stack of candidates, unassisted.
+- **Matching feels useful** — the ranked shortlist and the matched/missing-CORE breakdown are something a recruiter trusts and acts on.
+- **Feedback and outcomes are being captured** — proposal outcomes and recruiter corrections are landing for later learning.
+- **0 cross-tenant leaks** — verified by the isolation/leak probe.
 
-## 11. MVP Acceptance Criteria
+**Leading product signals (later):** time-to-shortlist per req, talent-pool reuse rate, outreach response rate, and (Phase 2+) measurable lift from feedback-tuned ranking.
 
-MVP is "done" when, for the design-partner agency:
-1. A recruiter can run **Flow A end to end** in the product, unassisted, on a real JD + real candidates.
-2. Every fitment score shows a **parameter-by-parameter evidence breakdown**, and "regenerate this score" reproduces it exactly.
-3. No triage state can be written **without a human actor + reason code** (verified by attempting a system-only write and being rejected).
-4. The **span-grounding gate**, **reproducibility**, and **cross-tenant leak** CI gates are green.
-5. Generated questions come with **structured JSON answer keys**, are recruiter-curated, and answer-key reveals are audited.
-6. A **redacted shortlist** can be produced for a client with **no** fraud signals / RED candidates / internal notes, and structured feedback is captured.
-7. The full loop's events are in the **immutable audit trail**, reproducible for a retrospective fairness review.
+## 11. Phase 1 Acceptance Criteria
+
+Phase 1 is "done" when:
+1. A recruiter can run **Flow A end to end** in the product on Supabase + Vercel, unassisted, with real candidates.
+2. Fit shows a **transparent breakdown** (matched skills + missing CORE), not an opaque number, and recruiter skill overrides change the result.
+3. **Bulk upload** ingests many résumés (one candidate per file) with deterministic parse and within-org email dedupe.
+4. Generating a screen yields **15 questions (5/5/5)** grounded in the résumé + JD, each with an answer key, and the recruiter can grade them.
+5. **Mass outreach send works** and honors consent/unsubscribe + CAN-SPAM.
+6. **Org isolation holds** — the cross-tenant leak probe is green.
+7. Candidate PII can be **hard-deleted on request**, and recruiter decisions/outcomes are recorded for later learning.
 
 ## 12. Assumptions, Dependencies & Out-of-Scope
 
-**Assumptions** (the proposed defaults in [`DECISIONS.md`](DECISIONS.md) — ratify or override):
-- Candidate is **org-scoped**, reusable across the org's clients under blanket-with-revocation consent ([D1](DECISIONS.md#d1-candidate-consent--cross-client-reuse-model)).
-- Compliance floor = **US-baseline EEOC** for MVP ([D4](DECISIONS.md#d4-jurisdictional-compliance-floor)).
-- **Software/technical staffing** vertical first ([D11](DECISIONS.md#d11-initial-vertical--role-mix)).
-- **Recruiter-administered/written** screening, **manual grading** ([D12](DECISIONS.md#d12-response-modality--ai-assist-grading)).
-- **Neon** infra for MVP, **no real PII until DPA + encryption confirmed** ([D8](DECISIONS.md#d8-infrastructure--vpc-posture)).
+**Assumptions** (ratified defaults in [`DECISIONS.md`](DECISIONS.md)):
+- A candidate is **org-scoped** with a simple consent flag (`pending / opted_in / unsubscribed`) and a source; no cross-org sharing ([D1](DECISIONS.md#d1-candidate-model--consent)).
+- ManFriday is a **software vendor / processor**, not the employer's agent; terms-of-service / vendor posture per ([D3](DECISIONS.md#d3-vendor-posture--terms-of-service)).
+- **Software / technical staffing** is the first vertical ([D11](DECISIONS.md#d11-initial-vertical--role-mix)).
+- Screening is **recruiter-administered with manual grading**; AI-assist grading is optional ([D12](DECISIONS.md#d12-screening-administration--ai-assist-grading)).
+- Infrastructure is **Supabase + Vercel** ([D8](DECISIONS.md#d8-infrastructure-supabase--vercel)).
 
-**Dependencies:** Phase 0 foundation ([`PHASE_0.md`](PHASE_0.md)) must ship first (RLS, provenance, router, redaction, audit). Lightcast Open Skills data ([D13](DECISIONS.md#d13-lightcast-license)).
+**Dependencies:**
+- A provisioned **Supabase project** (Postgres + pgvector + Storage + Auth) and a Vercel deployment.
+- The self-hosted **Lightcast Open Skills** dataset (free download), seeded by the existing ~49-skill lexicon ([D13](DECISIONS.md#d13-lightcast-license)).
 
-**Hard dependencies on the owner/counsel before the design partner's real candidates are onboarded:** [D2](DECISIONS.md#d2-demographic-data-source--sufficiency) (demographics), [D3](DECISIONS.md#d3-agency-vs-client-eeoc-liability-allocation) (liability posture), [D5](DECISIONS.md#d5-retention-vs-deletion-policy) (retention/deletion).
-
-**Out of scope for MVP:** everything tagged [P2]–[P6] above and in [`ROADMAP.md`](ROADMAP.md) — adverse-impact monitoring at scale, SSO/SCIM, ATS, commercial parser, agents, fraud detection, RAG-at-scale, preference learning, isolated tier, video screening.
+**Out of scope for Phase 1:** everything tagged **[P2]** / **[P3]** above — embeddings/hybrid matching, feedback-tuned ranking, LLM-assisted parsing/OCR-at-volume, deeper agents, ATS integration, and additional verticals — plus candidate self-service login and any EEOC/compliance tooling (not part of this product).

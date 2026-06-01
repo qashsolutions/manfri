@@ -1,13 +1,19 @@
 import { KeyRound, ShieldCheck } from "lucide-react";
-import Link from "next/link";
 
+import { signInAction } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <div className="grid min-h-screen place-items-center bg-muted/30 p-6">
       <div className="w-full max-w-sm space-y-6">
@@ -16,60 +22,52 @@ export default function LoginPage() {
             M
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Sign in to ManFriday</h1>
-          <p className="text-sm text-muted-foreground">Compliant talent CRM for recruiters</p>
+          <p className="text-sm text-muted-foreground">Recruiter sign-in</p>
         </div>
 
         <Card>
           <CardContent className="space-y-4 p-6">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Work email</Label>
-              <Input id="email" type="email" placeholder="you@agency.com" />
-            </div>
+            <form action={signInAction} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Work email</Label>
+                <Input id="email" name="email" type="email" autoComplete="email" placeholder="you@agency.com" required />
+              </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+              <div className="space-y-1.5">
                 <Label htmlFor="password">Password</Label>
-                <span className="text-xs text-muted-foreground transition-colors hover:text-foreground">
-                  Forgot?
-                </span>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  required
+                />
               </div>
-              <Input id="password" type="password" placeholder="••••••••" />
-            </div>
 
-            <div className="space-y-1.5">
-              <Label>Authenticator code</Label>
-              <div className="flex gap-2">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Input
-                    // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length static mockup
-                    key={i}
-                    inputMode="numeric"
-                    maxLength={1}
-                    className="size-10 px-0 text-center text-base"
-                  />
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">6-digit code from your authenticator app</p>
-            </div>
+              {error ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              ) : null}
 
-            <Button className="w-full" asChild>
-              <Link href="/">
+              <Button type="submit" className="w-full">
                 <KeyRound className="size-4" />
                 Sign in
-              </Link>
-            </Button>
+              </Button>
+            </form>
 
             <Separator />
 
             <p className="text-center text-xs text-muted-foreground">
-              Candidates sign in with a one-time magic link instead.
+              Recruiter accounts are managed by your organization admin.
             </p>
           </CardContent>
         </Card>
 
         <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
           <ShieldCheck className="size-3.5 text-success" />
-          Two-factor required · sessions are short-lived and audited
+          Sessions are managed by Supabase Auth
         </p>
       </div>
     </div>

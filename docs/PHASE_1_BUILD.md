@@ -1,191 +1,202 @@
-# Phase 1 Build Plan — Real Data, Upload & Dynamic Screens
+# Phase 1 Build Plan — The Real Loop on TypeScript + Supabase + Vercel
 
-> **Status:** plan for review (owner). No code in this doc is built yet. Supersedes the "mock screens"
-> stance: **production must be 100% real and dynamic; mock data is allowed only in dev/staging/preview.**
-> Pairs with [`STATUS.md`](../STATUS.md), [`CLAUDE.md`](../CLAUDE.md) (invariants), [`WEDGE_UI.md`](WEDGE_UI.md) (the UI/IA), and [`DECISIONS.md`](DECISIONS.md).
+> **Status:** buildable plan for the lean rebuild. The Next.js UI in `web/` is **built and stays**; the
+> Python backend (`services/api` FastAPI + `services/workers` Arq) is being **retired** and rebuilt in
+> **TypeScript**. This doc describes the **TypeScript target**; the Python code is the *port-from* source.
+> Pairs with [`CLAUDE.md`](../CLAUDE.md), [`STATUS.md`](../STATUS.md), [`docs/ARCHITECTURE.md`](ARCHITECTURE.md),
+> [`docs/PRD.md`](PRD.md), [`docs/WEDGE_UI.md`](WEDGE_UI.md), [`docs/SUPABASE.md`](SUPABASE.md),
+> [`docs/DECISIONS.md`](DECISIONS.md), and the code-grounded [`EXTRACTION_REPORT.md`](../EXTRACTION_REPORT.md).
 
 ## 0. What this delivers
 
-A working, real product: a recruiter (in an org, per-seat) signs in, the org has a **résumé database**,
-the recruiter **uploads résumés (single + bulk)** which are parsed into structured fields, uploads a
-**job description** that's broken into weighted **core / nice-to-have** skills with a **completeness
-score**, gets a **ranked list of best-fit candidates** with advisory **review-area flags**, and can
-**bulk-email** the fits. A candidate can belong to **more than one org** (consent-gated). Every screen
-reads live data; nothing in prod is static.
+The **real recruiter loop, live**, on Supabase + Vercel — no mock data in production:
 
-## 1. Decisions locked (this session)
+A recruiter signs in to their org (a staffing agency; many recruiters share the org's data). They build the
+org's **résumé database** by **uploading résumés (single + bulk)**, which are **parsed** into structured
+fields. **At upload**, each résumé gets **advisory authenticity flags** (deterministic rules + optional LLM)
+that surface for a human — they never auto-reject. The recruiter uploads a **job description**, which is
+broken into weighted **CORE / NICE** skills with a **completeness score**. They get a **transparent ranked
+list** of best-fit candidates (`fit = 0.8·core_coverage + 0.2·nice_coverage`, 0–100), generate **15
+screening questions** (5 simple / 5 medium / 5 hard) with answer keys to screen and grade candidates, apply
+**lightweight triage** (a candidate status + a proposal outcome — no GREEN/AMBER/RED), **send mass
+outreach** (real email, with consent/unsubscribe + a CAN-SPAM footer), and **capture feedback**.
 
-| # | Decision | Owner answer |
+The four slim invariants hold throughout: org isolation via Postgres RLS (incl. pgvector); a human decides
+(AI never auto-rejects); capture data now, learn later; a plain append-only audit log. The EEOC/compliance
+posture from the old plan is **gone** — compliance here is pragmatic GDPR/CCPA (soft-delete + hard-delete on
+request) and CAN-SPAM, nothing more.
+
+## 1. Decisions locked
+
+See [`docs/DECISIONS.md`](DECISIONS.md) for the full rationale on each.
+
+| Area | Decision | Ref |
 |---|---|---|
-| D-a | Real data is the goal; mock only in lower envs | **Confirmed** |
-| D-b | Users can upload + bulk-upload résumés | **Confirmed** |
-| D-c | No static screens in prod — all dynamic, all real | **Confirmed** |
-| D-d | Résumé parsing approach (v1) | **Deterministic first** (text-extract + rules; LLM later) |
-| D-e | Multi-org candidate model | **Strict org isolation** — each org stores its own copy; no cross-org sharing or link (clarified by owner) |
-| D-f | Supabase accounts | **Owner is creating them** |
-| D-g | Pricing | `$29`/seat placeholder, unconfirmed |
+| Backend & host | **TypeScript** backend (Next.js Route Handlers / Server Actions) on **Supabase + Vercel**. No Python, no AWS/Neon, no Temporal/Redis/Arq, no Terraform. | [D8](DECISIONS.md#d8-infrastructure-supabase--vercel) |
+| Auth & isolation | **Supabase Auth** for org + recruiter; isolation = **Postgres RLS keyed on the `org_id` claim in the Supabase Auth JWT** (no non-BYPASSRLS role + `SET LOCAL`). | [D8](DECISIONS.md#d8-infrastructure-supabase--vercel) |
+| Parsing | **Deterministic v1** (text extract + regex/lexicon rules); optional LLM is additive, later. | — |
+| Candidate model | **Org-isolated** candidate; the same person may exist in several orgs with **no cross-org link** (no identity table). A **simple consent flag** (`pending` / `opted_in` / `unsubscribed` + source), **not** a ledger. | [D1](DECISIONS.md#d1-candidate-model--consent) |
+| Skills taxonomy | **Lightcast Open Skills** (free download, self-hosted), **seeded** by the ~49-skill lexicon ported from the Python parser. | [D13](DECISIONS.md#d13-lightcast-license) |
+| Initial vertical | **Software / technical staffing first.** | [D11](DECISIONS.md#d11-initial-vertical--role-mix) |
+| Triage & feedback | Lightweight: `candidate.status` + `proposal.outcome`. No GREEN/AMBER/RED. | [D9](DECISIONS.md#d9-triage-states--feedback-capture) |
+| AI-assist grading | Recruiter grades the 15 screening questions; AI-assist is optional. | [D12](DECISIONS.md#d12-screening-administration--ai-assist-grading) |
+| Cost ceiling | LLM is optional/additive; per-screen cost ceiling tracked. | [D6](DECISIONS.md#d6-per-candidate--per-screen-cost-ceiling) |
 
-## 2. The hard gate (must clear before real PII lands anywhere)
+## 2. Schema (the real tables)
 
-Real résumés are real PII. The moment we ingest one, Phase-0 invariants stop being theoretical and the
-⚖️ counsel items in [`DECISIONS.md`](DECISIONS.md) become **active**. **None of this blocks building against
-local Postgres / synthetic files.** It blocks only pointing a real, public, `DATA_SOURCE=api` deployment at
-real candidate data.
+One Supabase Postgres database. Every tenant-scoped table carries `org_id` and a **Row-Level Security
+policy that reads the `org_id` claim from the Supabase Auth JWT** — conceptually, the policy `USING` /
+`WITH CHECK` predicate compares the row's `org_id` to `auth.jwt() -> 'org_id'` (the exact policy SQL lives in
+[`docs/SUPABASE.md`](SUPABASE.md); **do not** hand-write migrations from this doc). pgvector queries are
+RLS-governed the same way. This **replaces** the retiring Python model's non-BYPASSRLS app role +
+transaction-local `SET LOCAL app.current_org` GUC mechanism.
 
-- **D2 — Demographic data / EEOC defense** (counsel)
-- **D3 — Agency↔client liability** (counsel)
-- **D5 — Retention vs deletion** (counsel)
-- **Supabase region + DPA** confirmed before real PII (D8 supersession already noted in STATUS).
+**Tenancy (locked):** tenant = org = staffing agency. Many recruiters per org, **all sharing the org's
+data**. The same candidate/résumé may exist in multiple orgs with **no cross-org link** — there is **no
+`candidate_identity` table**. Within an org, dedupe by **normalized email**.
 
-  *(Note: an earlier "shared candidate pool" idea was dropped — the owner clarified the model is strict
-  org isolation, where org A and org B may each independently hold the same person's résumé but never see
-  each other's data. That removes the cross-org consent question entirely and keeps invariant #3 intact.)*
+Real tables (all tenant-scoped + RLS on `org_id` JWT claim, except where noted):
 
-> Build order is designed so all of this is exercised with **synthetic data in dev** first; the prod
-> switch (`DATA_SOURCE=api` + Supabase) is the *last* step and the one that needs the sign-offs.
+- **`organization`** — tenant root (the agency). RLS keyed on its own `id`.
+- **`app_user`** — a recruiter/user account (backed by Supabase Auth).
+- **`membership`** — `(user, org, role)`; how a user belongs to an org.
+- **`candidate`** — org-scoped, holds the contact **PII** directly (plain columns; **no envelope-crypto
+  blob** — that `tenant_key` layer is dropped). Carries a **simple consent flag** `consent_state`
+  (`pending` / `opted_in` / `unsubscribed`) + `consent_source` (not a consent ledger), a pipeline `status`,
+  and a `deleted_at` for soft-delete.
+- **`resume`** — **immutable, versioned** rows (`version`, `content_hash`, `is_current`, `superseded_by`,
+  `storage_uri`) with the deterministic parse output in `parsed_jsonb`.
+- **`requisition`** — a job opening (`title`, `location`, `employment_type`, `openings`, `status`,
+  `jd_text`, …).
+- **`jd_skill`** — a weighted CORE/NICE skill on a req (`name`, `tier` ∈ {`core`,`nice`}, `weight` 0..1,
+  `sort_order`). This is the matcher's rubric.
+- **`proposal`** — a candidate proposed to a req + its `outcome` (lightweight triage; the within-org
+  history).
+- **audit log** — a **plain append-only** activity log (org-scoped, INSERT-only). **Dropped:** the
+  `prev_hash` hash-chain framing — it's a simple ordered log now.
+- **`embedding`** — pgvector rows (RLS on `org_id`). **Present in the schema but unused in Phase 1** —
+  embeddings/hybrid search arrive in Phase 2.
 
-## 3. What already exists (Phase 0 — reuse, don't rebuild)
+**Dropped from the old (Python) schema** — do **not** carry these forward: `parse_run` / `scoring_run` /
+`generation_run` / `score` (run-provenance), `tenant_key` (PII envelope crypto / crypto-shred),
+`consent_ledger` (replaced by the simple flag), `client` as a separate tenancy concept (the org *is* the
+agency), any demographics / protected-class store, and any `candidate_identity` / cross-org link table.
 
-From the backend survey:
+## 3. Port from the retiring Python implementation
 
-- **DB spine** (`services/api/app/db/models.py`): `organization, role, client, app_user, membership,
-  candidate, embedding, parse_run, scoring_run, generation_run, score, audit_event, resume, tenant_key`
-  — all RLS-scoped, Alembic baseline `0001_phase0_baseline.py`.
-- **RLS context**: `db/session.py::tenant_transaction(org_id, user_id, role)` sets `SET LOCAL app.current_org/...`;
-  `auth/session_scope.py::scoped_transaction(claims)` bridges JWT → RLS. App connects as non-BYPASSRLS `manfriday_app`.
-- **Résumé storage**: `storage/base.py` Protocol (`put/get/exists`), `storage/filesystem.py` (local),
-  `storage/__init__.py::get_object_store()` (cloud swap seam). `resumes.py::store_resume(...)` =
-  immutable, content-hashed, versioned (`is_current`, `superseded_by`).
-- **Ingestion**: `ingestion.py::ingest_resume(...)` — size cap, malware stub (EICAR), audited, RLS-scoped.
-- **Redaction + router**: `redaction/engine.py` (Presidio), `router/generate.py` (echo backend today).
-- **Auth**: EdDSA JWT → RLS, TOTP.
-- **Contract**: FastAPI → `app.openapi_export` → `packages/contracts/openapi.json` → `openapi-typescript`
-  → `web/lib/api`; **CI drift gate** must stay green.
-- **Web seam (this session)**: `web/lib/data` with `DATA_SOURCE=mock|api`; `api.ts` stubbed and ready to wire.
-- **Tests**: 47 (RLS isolation, leak probe, provenance, audit, resume, redaction, router, auth, ingestion).
+These pieces are **already implemented in Python today** (see [`EXTRACTION_REPORT.md`](../EXTRACTION_REPORT.md))
+and are deterministic, network-free, and well-understood. **Re-implement each in TypeScript** — the logic
+ports almost 1:1.
 
-## 4. The schema change — strict org isolation (D-e, owner-clarified)
+- **Deterministic résumé parser** (from `services/api/app/parsing/resume.py`, `extract.py`): bytes → text
+  (PDF / DOCX / plain), then regexes for **email / phone / URL / years / explicit "N years" / date-ranges**
+  with open-ended ranges anchored to the latest year in the doc (so a parse is reproducible). The persisted
+  `parsed_jsonb` carries **non-PII signal only** (skills, total experience years, link domains, contact
+  presence booleans, text length, parser version).
+- **The ~49-skill lexicon** (from `services/api/app/parsing/skills.py`): the canonical→aliases map, matched
+  case-insensitively and **edge-bounded on alphanumerics** (so `C++`, `C#`, `Node.js`, `k8s` match without a
+  `\b` misfire), with ambiguous bare aliases (`go`, `ml`) deliberately omitted. **This lexicon is the seed
+  for the Lightcast Open Skills import** (D13) — keep its precision-biased matching behavior.
+- **The transparent matcher** (from `services/api/app/matching/score.py`): `fit = 0.8·core_coverage +
+  0.2·nice_coverage`, each coverage = weighted fraction of that tier's skills present, scaled to a 0–100
+  integer; return the `matched` / `missing_core` breakdown and the per-skill `present` list. Stable tie-break
+  by `(fit desc, candidate_id)`.
+- **JD completeness** (from `score.py`): the weighted checks summing to 100 (`title` 15, `location` 10,
+  `employment_type` 10, `jd_text` 15 [≥200 chars], `core_skills` 30 [≥3], `nice_skills` 20 [≥1]) → score +
+  per-item `present` / `hint`.
+- **Advisory review flags** (from `services/api/app/matching/flags.py`): the four deterministic data-quality
+  rules — `no_contact`, `no_skills_detected`, `sparse_resume` (`<500` chars), `no_experience_signal` —
+  **advisory only, never folded into fit, never auto-reject, never client-facing.**
+- **The 23 REST endpoint shapes** (from `packages/contracts/openapi.json` / `services/api/app/api/*`): reuse
+  them as the request/response contracts for the new TS Route Handlers so the web client barely changes.
+- **The web `DataProvider` contract** (the **20 methods** the UI calls, `web/lib/data/contract.ts`): the new
+  TS backend must satisfy exactly this contract.
 
-Owner clarified the model: **each org independently stores its own copy of a candidate.** Org A may source a
-person's résumé from one place and org B from another; both store it, and **neither ever sees the other's
-data.** There is **no shared pool, no cross-org link, no identity table** — this is exactly Phase-0 invariant
-#3, untouched. (An earlier identity-link idea was built and then removed once this was clarified.)
+> **Not a port — these have no real code today** and are **new Phase-1 build** (§4): there is **no real
+> LLM/embedding code**, **no 15-question screening generator**, **no authenticity sub-agent set**, and **no
+> outreach send** in the Python repo. (The rich `matchDetail` with sub-scores and GREEN/AMBER/RED in
+> `web/lib/sample-data.ts` is a static fixture, not a backend.)
 
-```
-candidate            (stays org-scoped + RLS + per-org-encrypted PII; gains per-org fields:)
-  + consent_state   'pending'|'opted_in'|'unsubscribed'
-  + consent_source, consent_updated_at
-  + status          'new'|'contacted'|'screening'|'submitted'   (per-org pipeline state)
-  (PII stays in pii_jsonb, encrypted with this org's tenant_key — unchanged)
+## 4. New build (not ports)
 
-resume               (unchanged: candidate-linked, immutable/versioned; org-scoped by RLS)
+- **Supabase Auth + RLS** — org + recruiter sign-in via Supabase Auth; mint/carry the `org_id` claim;
+  author the RLS policies that read that claim (incl. on `embedding`).
+- **Upload (single + bulk) → parse pipeline** — accept one or many files, store immutable/versioned bytes in
+  **Supabase Storage**, enqueue parse work (§5), write `parsed_jsonb` + within-org email dedupe.
+- **Authenticity flags at upload** — run the ported deterministic checks (§3) as files land, plus an
+  **optional LLM** pass; flags are **advisory** and surface to a human, never auto-reject.
+- **JD → skills + completeness** — extract candidate skills from `jd_text` via the lexicon/Lightcast set
+  (recruiter re-tiers/re-weights CORE vs NICE), compute the completeness score.
+- **Match / rank** — apply the ported transparent matcher and return the ranked list + breakdown.
+- **The 15-question screening generator + answer keys** — generate **5 simple / 5 medium / 5 hard**
+  questions grounded in the JD + résumé, with answer keys; the **recruiter grades** (AI-assist optional, per
+  [D12](DECISIONS.md#d12-screening-administration--ai-assist-grading)). This is a brand-new capability.
+- **Lightweight triage writes** — set `candidate.status` and `proposal.outcome`; no GREEN/AMBER/RED state.
+- **Outreach SEND** — pick an **email provider** (§8), send mass outreach to the consent-eligible audience,
+  honor **unsubscribe**, and append a **CAN-SPAM footer + sender identification** to every message. Record
+  sends.
+- **Capture feedback** — record outcomes/feedback against proposals so Phase 2/3 can learn from them
+  (capture now, model later).
 
-requisition  (NEW, org-scoped + RLS)  id, org_id, client_id?, title, location, employment_type,
-             openings, status 'open'|'on_hold'|'filled', jd_text?, jd_storage_uri?, jd_content_hash?,
-             jd_version, parse_run_id?, created_at, deleted_at
-jd_skill     (NEW, org-scoped + RLS)  id, org_id, requisition_id, name, tier 'core'|'nice',
-             weight (0..1), sort_order        -- reorderable / reprioritizable
-proposal     (NEW, org-scoped + RLS)  id, org_id, candidate_id, requisition_id, outcome
-             'proposed'|'interviewing'|'rejected'|'hired', reason?, decided_by?, decided_at?, created_at
-             -- a candidate's history WITHIN this org, across its clients/reqs — never across orgs
-consent_ledger (NEW, org-scoped + RLS, append-only)  id, org_id, candidate_id, event, source?, occurred_at
-```
+## 5. Background-work pattern
 
-**Invariant handling (explicit):**
-- Every new table — `candidate` (extended), `requisition`, `jd_skill`, `proposal`, `consent_ledger` — is
-  **org-scoped + RLS** (invariant #3 holds, unchanged from Phase 0). No global tables added.
-- PII stays in `candidate.pii_jsonb`, **encrypted per-org** (invariants #4/#11 unchanged).
-- "Proposal history" is strictly within-org (across that org's clients/reqs). Leak-probe tests
-  (`test_product_rls_isolation.py`) assert org B sees none of org A's candidate/requisition/proposal rows
-  even when both orgs independently store the same person.
+The deterministic parse, bulk-upload fan-out, and outreach sends run **off the request path** using a
+**TypeScript-friendly** job mechanism — **Supabase scheduled functions / Inngest / Trigger.dev / QStash /
+Vercel cron** (final choice in §8). This **replaces the retiring Arq + Redis worker** (`services/workers`)
+entirely. Jobs are idempotent and re-runnable; bulk upload fans out one parse task per file and surfaces job
+state to the import UI.
 
-**Migration:** folded into the single **replayable baseline** (`0001`), not a separate `0002`. The baseline
-materializes the schema via `Base.metadata.create_all` (live ORM metadata), so a standalone `ALTER`-style
-`0002` can't sit on top of it (the baseline already creates the new tables/columns on replay → `ADD COLUMN`
-would collide). Instead, the Phase-1 tables/columns appear in the baseline automatically, and the baseline's
-RLS list + grants were extended for them (`consent_ledger` append-only like `audit_event`; `candidate_identity`
-a global no-RLS lookup like `role`). Switching to frozen autogenerated incremental migrations is a deliberate
-future step (needed once there's production data to preserve). Verified: clean `downgrade base`→`upgrade head`
-replay; **61 passed / 4 skipped** incl. new shared-pool leak-probe tests proving org B can't read org A's
-candidate/requisition/proposal rows even when they share an identity.
+## 6. Web wiring
 
-## 5. Résumé parsing (D-d — deterministic v1)
+The existing `web/` UI is **unchanged**. It reads only from `@/lib/data`, which selects a provider via
+`DATA_SOURCE`. To go live, **flip `DATA_SOURCE` to the new TypeScript backend** and point its API base at the
+Route Handlers. Because both providers implement the same `DataProvider` contract, page changes are minimal —
+mock stays the dev default.
 
-A new `services/api/app/parsing/` module, called by the worker:
-- **Text extraction:** PDF (`pypdf`) + DOCX (`python-docx`) → plain text. (Scanned-image OCR is out of scope v1;
-  such files land in a "needs review" state — matches the import UI.)
-- **Field rules:** email/phone (regex), name (heuristic top-of-doc), skills (match against a seed skills
-  dictionary), employment dates → total experience, education. Output a typed `ParsedResume` → `resume.parsed_jsonb`.
-- **Provenance:** still writes a `parse_run` row (`model_id="deterministic-v1"`, `prompt_version="rules/resume@1"`,
-  `input_hash`) so invariant #2 holds even without an LLM.
-- **Upgrade path:** an `LLM` parser swaps in behind the same interface later (router + redaction already exist).
+**Five UI methods are currently unbacked** (the Python `api.ts` throws "not available in this phase" for
+them); **Phase 1 must now back all five**, since screening and outreach become real:
 
-## 6. Upload & bulk upload (D-b)
+- `getImportQueue` — bulk-upload queue state (now backed by the §5 job states).
+- `getMatchDetail` / screening — the 15-question screening view (now backed by the §4 generator).
+- `listCampaigns` — outreach campaigns (now backed by real sends).
+- `getEmailTemplates` — outreach templates.
+- `getOutreachStats` — outreach send/open/reply metrics.
 
-- **Single:** `POST /candidates/{id}/resumes` (multipart) → `ingest_resume()` (exists) → enqueue parse job.
-- **Bulk:** `POST /resumes:bulk` (multipart, many files) → one ingest + parse job per file; returns a batch id.
-- **Worker:** implement the Arq job in `services/workers` (skeleton today) — `parse_resume(resume_id)` runs in the
-  egress-denied worker, calls the parser, writes `parsed_jsonb` + `parse_run`, audits, and (if a new candidate)
-  creates `candidate` + `candidate_org`. The import screen's queue states (`queued→parsing→encrypting→done|review`)
-  map to real job states.
+## 7. Build sequence (PR-sized steps)
 
-## 7. FastAPI product endpoints (→ OpenAPI → TS)
+1. **Supabase project + schema/RLS** — provision the project; create the real tables (§2); author the RLS
+   policies reading the `org_id` JWT claim (incl. `embedding`); enable pgvector.
+2. **Auth** — Supabase Auth sign-in for org + recruiter; thread the `org_id` claim end-to-end.
+3. **Upload + parse** — Supabase Storage for résumé bytes; port the parser + lexicon (§3); single + bulk
+   upload → parse via the §5 job pattern; within-org email dedupe.
+4. **Authenticity flags** — run the deterministic checks at upload; wire the optional LLM pass.
+5. **JD + skills + completeness** — JD upload, CORE/NICE extraction (Lightcast-seeded), recruiter
+   re-tier/re-weight, completeness score.
+6. **Match** — the transparent ranked-match endpoint + breakdown.
+7. **Screening questions** — the 15-question generator (5/5/5) + answer keys + recruiter grading.
+8. **Triage** — `candidate.status` + `proposal.outcome` writes; capture feedback.
+9. **Outreach send** — email provider, consent/unsubscribe, CAN-SPAM footer + sender ID, recorded sends.
+10. **Web wiring** — flip `DATA_SOURCE` to the TS backend; back the five formerly-unbacked methods (§6);
+    verify the full loop end-to-end on Supabase + Vercel.
 
-Each is RLS-scoped via `scoped_transaction(claims)`; each AI/scoring write goes through a `*_run`. New routers
-under `services/api/app/` registered in `main.py`:
+## 8. Open sub-decisions (light)
 
-| Area | Endpoints |
-|---|---|
-| Candidates | `GET /candidates` · `GET /candidates/{id}` · `POST /candidates` · `GET /candidates/{id}/detail` (review flags, proposals, orgs) |
-| Résumés | `POST /candidates/{id}/resumes` · `POST /resumes:bulk` · `GET /candidates/{id}/resumes` · `GET /imports` (queue) |
-| Requisitions | `GET /requisitions` · `GET /requisitions/{id}` · `POST /requisitions` (JD upload → skills + completeness) |
-| JD skills | `GET /requisitions/{id}/skills` · `PUT /requisitions/{id}/skills` (reorder/reweight) · `GET /requisitions/{id}/completeness` |
-| Matching | `GET /requisitions/{id}/matches` (ranked) · `GET /requisitions/{id}/matches/{candidateId}` (fit detail) |
-| Proposals | `GET /candidates/{id}/proposals` · `POST /proposals` (track) |
-| Outreach | `GET /campaigns` · `GET /audience` · `POST /campaigns` (compose; send is its own gated step) |
-| Settings | `GET /plan` · `GET /team` |
-| Dashboard | `GET /stats` |
+- **Email provider** — pick one for real sends (e.g. Resend / Postmark / SES-equivalent) that supports
+  unsubscribe handling and clean deliverability; needed before outreach send is real.
+- **Per-screen cost ceiling** — set the LLM cost ceiling per screen now that screening/LLM is optional but
+  additive ([D6](DECISIONS.md#d6-per-candidate--per-screen-cost-ceiling)).
+- **Dedupe key** — confirm **normalized email** as the within-org dedupe key (no cross-org dedupe).
+- **Background-job mechanism** — confirm the §5 choice (Supabase scheduled functions / Inngest / Trigger.dev
+  / QStash / Vercel cron).
 
-Matching v1 = deterministic composite (skill coverage from `jd_skill` weights × parsed skills, recency,
-experience) — the transparent sub-score model the UI already shows; **advisory review flags are computed and
-returned separately, never folded into fit, never auto-reject** (invariants #6/#8). LLM scoring is a later swap.
+## 9. Compliance posture (light)
 
-After endpoints: regenerate `openapi.json` + TS types; **keep the drift gate green**.
+There is **no hard PII gate, no counsel sign-off (D2/D3/D5), and no EEOC/adverse-impact requirement** in this
+plan — that whole posture is removed. Pragmatic only:
 
-## 8. Web: wire the real provider + kill static (D-c)
+- Pick an **email provider** and stand up basic **ToS / privacy** + a compliant **CAN-SPAM** footer.
+- Honor **deletes** — soft-delete (`deleted_at`) plus **hard-delete on request** (GDPR/CCPA).
+- Outreach respects **consent / unsubscribe** (the simple candidate consent flag).
 
-- Implement `web/lib/data/api.ts` with `openapi-fetch` typed against `@manfriday/contracts`, forwarding the
-  recruiter's session (BFF mints the short-lived internal JWT — Phase 0 auth).
-- Add `export const dynamic = "force-dynamic"` (and `revalidate = 0`) to every data page so **prod never serves
-  static** — satisfies D-c. (Mock mode in dev can stay static for speed; prod is `api` + dynamic.)
-- The `DataProvider` contract means **zero page changes** — only `api.ts` + the env flag.
-
-## 9. Supabase (D-f — owner provisioning)
-
-What I need from you once accounts exist: **project URL, DB connection string (pooler), service/anon keys as
-appropriate, region.** Then:
-- `SupabaseObjectStore` behind the existing `storage/base.py` Protocol (résumé bytes → Supabase Storage).
-- `DATABASE_URL` → Supabase Postgres **via the non-BYPASSRLS app role** + `SET LOCAL` GUCs (our RLS layer runs
-  *on top* of Supabase, per STATUS). Enable `pgvector`. Run `alembic upgrade head`.
-- Config/secrets in `config.py` (no secrets in repo).
-- Verify the full prod path: upload → parse → match → render, all dynamic, all real.
-
-## 10. Build sequence (PR-sized steps)
-
-1. **Schema** — ✅ done: org-isolated product tables (requisition/jd_skill/proposal/consent_ledger + candidate consent/status) + RLS folded into the replayable baseline + new leak-probe tests. *(task #2)*
-2. **Parser + worker** — deterministic parser + Arq `parse_resume` job + tests. *(task #3)*
-3. **Endpoints** — FastAPI product routers + OpenAPI/TS regen, drift gate green. *(task #4)*
-4. **Web wiring** — `api.ts` + `force-dynamic`; verify `DATA_SOURCE=api` against local Postgres. *(task #5)*
-5. **Supabase** — storage + DB + secrets + prod verification (needs your accounts + counsel sign-offs). *(task #6)*
-
-Steps 1–4 run entirely on **local Postgres with synthetic uploads** — real, dynamic, but no real PII. Step 5 is
-the only one that touches production data, and it's gated on §2.
-
-## 11. Open sub-decisions (not blocking the plan; will surface as we build)
-
-- **Candidate global dedupe key** — normalized-email hash assumed; confirm (affects "same person across orgs").
-- **Email provider** for real sends (ZDR/DPA for candidate data) — needed before outreach send is real.
-- **Skills dictionary source** — seed list now; Lightcast/ESCO taxonomy later (a known buy-vs-build item).
-- **Pricing** — `$29` placeholder.
-- **"Send" + "triage" writes** — these are irreversible/decision actions; they'll require explicit confirm
-  steps and reason codes (invariant #1) when wired.
+The data-region / DPA negotiations, demographic-data gates, and agency↔client EEOC-liability questions from
+the old plan are **dropped**.
