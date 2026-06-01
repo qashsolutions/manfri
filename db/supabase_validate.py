@@ -92,6 +92,7 @@ def _run(cmd: list[str], env: dict[str, str], cwd: Path = API_DIR) -> None:
 
 def main() -> None:
     import psycopg
+    from psycopg import sql
 
     env = _parse_env(ENV_FILE)
     raw = next((env[k] for k in _ADMIN_KEYS if env.get(k)), None)
@@ -107,7 +108,11 @@ def main() -> None:
     app_pw = secrets.token_urlsafe(24)
     raw_admin = admin_url.replace("postgresql+psycopg://", "postgresql://", 1)
     with psycopg.connect(raw_admin, autocommit=True) as conn:
-        conn.execute("ALTER ROLE manfriday_app WITH LOGIN PASSWORD %s", (app_pw,))
+        # ALTER ROLE … PASSWORD cannot take a bound parameter (Postgres rejects the
+        # $1 placeholder in utility DDL), so compose a safely-quoted SQL literal.
+        conn.execute(
+            sql.SQL("ALTER ROLE manfriday_app WITH LOGIN PASSWORD {}").format(sql.Literal(app_pw))
+        )
     app_url = _derive_app_url(admin_url, app_pw)
     print(f"    app URL: {_mask(app_url)}")
 
@@ -133,11 +138,26 @@ def main() -> None:
     APP_ENV_OUT.chmod(0o600)
     print("    wrote services/api/.env.cloud.app")
 
-    print("==> 4/4  Running the full pytest suite against Supabase…")
+    print("==> 4/4  Running the suite against Supabase…")
     # Run from the repo root (as CI does) so the whole suite is collected — running from
     # services/api mis-resolves the rootdir and deselects most tests.
+    #
+    # Deselect ONE local-infra test: test_leak_probe_pgbouncer_pooling validates the dev
+    # PgBouncer config (db/pgbouncer.dev.ini on 127.0.0.1:6432) — it is not a Supabase
+    # assertion and cannot apply to a cloud DB. Supabase's own pooler (Supavisor) is a
+    # different component; pooling-safety there is its own future check. Everything else
+    # (RLS isolation, leak probe SQL/pgvector/worker paths, provenance, audit, product
+    # API end-to-end) runs against Supabase. Logged here so the exclusion is explicit.
+    print("    NOTE: deselecting test_leak_probe_pgbouncer_pooling (local PgBouncer only).")
     _run(
-        ["uv", "run", "pytest", "-q"],
+        [
+            "uv",
+            "run",
+            "pytest",
+            "-q",
+            "--deselect",
+            "services/api/tests/test_leak_probe.py::test_leak_probe_pgbouncer_pooling",
+        ],
         {"DATABASE_ADMIN_URL": admin_url, "DATABASE_URL": app_url},
         cwd=ROOT,
     )
