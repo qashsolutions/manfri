@@ -1,177 +1,213 @@
-# ManFriday — Decision Log (Proposed Defaults Awaiting Ratification)
+# ManFriday — Decision Log
 
-> Companion to [`ARCHITECTURE.md`](ARCHITECTURE.md), [`ROADMAP.md`](ROADMAP.md), [`PRD.md`](PRD.md), and [`PHASE_0.md`](PHASE_0.md).
+> Companion to [`ARCHITECTURE.md`](ARCHITECTURE.md), [`ROADMAP.md`](ROADMAP.md), [`PRD.md`](PRD.md), and [`PHASE_1_BUILD.md`](PHASE_1_BUILD.md).
 >
-> **Purpose:** The architecture left a set of product/legal questions open (ARCHITECTURE → *Open Decisions for the Product Owner*). Building on blanks is how a project stalls. So each open question below has a **proposed default** with rationale, so the owner can **ratify or override** rather than start cold. The PRD and Phase 0 spec are written *assuming these defaults*; flipping one means revisiting the docs that cite it.
+> **Purpose:** record the product/stack calls that shape the build, with their disposition. The **2026-05-31
+> lean-rebuild pivot** (TypeScript + Supabase + Vercel; EEOC/compliance + AWS layer dropped) **ratified** most of
+> the previously-open items and **removed** the ones that only existed to defend EEOC-regulated employment-decision
+> software. Three decisions in the old log (D2 demographics, D4 jurisdictional floor, D7 adverse-impact client
+> protocol) are **removed**; their headings are kept as short tombstones so older cross-references don't dangle.
 >
 > **Status legend:**
-> - 🟡 **PROPOSED** — Claude's recommended default; safe to build on provisionally; owner should confirm.
-> - ⚖️ **NEEDS COUNSEL** — a legal/contractual call; proposed posture is a starting point for counsel, **not** legal advice, and must be ratified before the gated phase ships.
-> - 🟢 **RATIFIED** — owner confirmed (none yet).
-> - 🔴 **OVERRIDDEN** — owner chose differently (record the choice + date).
->
-> **How to ratify:** edit the **Status** line (and add a one-line note + date). When a decision changes the design, update the cited section of `ARCHITECTURE.md`/`PRD.md`/`PHASE_0.md` and the relevant part of `CLAUDE.md`.
+> - 🟢 **RATIFIED** — owner-confirmed (the lean direction locks it).
+> - 🟡 **PROPOSED** — recommended default; safe to build on; confirm at leisure.
+> - ⚖️ **NEEDS LIGHT COUNSEL** — a basic legal/contract touch (vendor ToS, email/CAN-SPAM); not a courtroom-grade gate.
+> - 🗑️ **REMOVED** — no longer applicable under the lean direction.
 
 ---
 
 ## Index
 
-| ID | Decision | Status | Blocks |
-|---|---|---|---|
-| [D1](#d1-candidate-consent--cross-client-reuse-model) | Candidate consent & cross-client reuse model | 🟡 PROPOSED | Phase 0 schema |
-| [D2](#d2-demographic-data-source--sufficiency) | Demographic-data source & sufficiency | 🟡⚖️ PROPOSED / NEEDS COUNSEL | Phase 0 reserved schema; Phase 2 |
-| [D3](#d3-agency-vs-client-eeoc-liability-allocation) | Agency-vs-client EEOC liability allocation | ⚖️ NEEDS COUNSEL | Contracts/DPA; audit schema |
-| [D4](#d4-jurisdictional-compliance-floor) | Jurisdictional compliance floor | 🟡⚖️ PROPOSED / NEEDS COUNSEL | Scope of Phase 2/6 |
-| [D5](#d5-retention-vs-deletion-policy) | Retention vs deletion policy | 🟡⚖️ PROPOSED / NEEDS COUNSEL | Phase 0 schema; deletion jobs |
-| [D6](#d6-per-candidate--per-req-cost-ceiling) | Per-candidate / per-req cost ceiling | 🟡 PROPOSED | Router routing; parser build/buy |
-| [D7](#d7-protocol-when-a-client-repeatedly-fails-45ths) | Protocol when a client repeatedly fails 4/5ths | ⚖️ NEEDS COUNSEL | Phase 5 |
-| [D8](#d8-infrastructure--vpc-posture) | Infrastructure / VPC posture | 🟡 PROPOSED | Phase 0 infra; PII landing |
-| [D9](#d9-un-owned-spine-components) | Un-owned spine components (assessment delivery, client portal, reason codes, …) | 🟡 PROPOSED | Phase 1 scope freeze |
-| [D10](#d10-ats-write-back-placement-lifecycle--amber-auto-submit) | ATS write-back, placement lifecycle & AMBER auto-submit | 🟡 PROPOSED | Phase 1 vs 3 scope |
-| [D11](#d11-initial-vertical--role-mix) | Initial vertical / role mix | 🟡 PROPOSED | Taxonomy reliance; eval gold set |
-| [D12](#d12-response-modality--ai-assist-grading) | Response modality & AI-assist grading | 🟡 PROPOSED | Phase 1 grading UI |
-| [D13](#d13-lightcast-license) | Lightcast license (paid API vs free download) | 🟡 PROPOSED | Phase 1 taxonomy ingest |
+| ID | Decision | Status |
+|---|---|---|
+| [D1](#d1-candidate-model--consent) | Candidate model & consent | 🟢 RATIFIED |
+| [D2](#d2-removed--demographic-data) | ~~Demographic-data source & sufficiency~~ | 🗑️ REMOVED |
+| [D3](#d3-vendor-posture--terms-of-service) | Vendor posture & terms of service | ⚖️ NEEDS LIGHT COUNSEL |
+| [D4](#d4-removed--jurisdictional-compliance-floor) | ~~Jurisdictional compliance floor~~ | 🗑️ REMOVED |
+| [D5](#d5-data-retention--deletion) | Data retention & deletion | 🟢 RATIFIED |
+| [D6](#d6-per-candidate--per-screen-cost-ceiling) | Per-candidate / per-screen cost ceiling | 🟡 PROPOSED |
+| [D7](#d7-removed--adverse-impact-client-protocol) | ~~Protocol when a client repeatedly fails 4/5ths~~ | 🗑️ REMOVED |
+| [D8](#d8-infrastructure-supabase--vercel) | Infrastructure — Supabase + Vercel | 🟢 RATIFIED |
+| [D9](#d9-triage-states--feedback-capture) | Triage states & feedback capture | 🟢 RATIFIED |
+| [D10](#d10-placementoutcome-tracking) | Placement / outcome tracking | 🟢 RATIFIED |
+| [D11](#d11-initial-vertical--role-mix) | Initial vertical / role mix | 🟢 RATIFIED |
+| [D12](#d12-screening-administration--ai-assist-grading) | Screening administration & AI-assist grading | 🟢 RATIFIED |
+| [D13](#d13-lightcast-license) | Lightcast license (free download vs paid API) | 🟢 RATIFIED |
 
 ---
 
-## D1. Candidate consent & cross-client reuse model
-**Status:** 🟡 PROPOSED · **Blocks:** Phase 0 data model (candidate partitioning), the reusable talent pool.
+## D1. Candidate model & consent
+**Status:** 🟢 RATIFIED
 
-**Decision (proposed):** A candidate is **org-scoped** — one canonical candidate record per agency org — and **reusable across that org's clients** under a **blanket-with-revocation** consent captured at ingestion, with a **24-month TTL from last activity** and a re-consent prompt at expiry. **Cross-*org* (cross-tenant) sharing is OFF** by default and never happens without counsel-approved, anonymized, contractual opt-in. Consent is recorded as immutable events in a `consent_ledger` (timestamp, purpose, source, policy version). **Recruiter-sourced** candidates carry weaker consent and stricter retention defaults than **candidate-submitted** ones, flagged on the record.
+**Decision:** A candidate is **org-scoped**. Each org stores its **own** copy of a candidate/résumé; **every
+recruiter in the org sees all of the org's candidates** (no per-recruiter or per-client visibility scoping).
+There is **no cross-org link and no global `candidate_identity` table** — the same person existing in two orgs is
+incidental duplication, never a shared record. **Within-org dedupe by normalized email** is fine; cross-org
+linkage is not. Outreach consent is a **simple per-candidate flag** (`pending` / `opted_in` / `unsubscribed`)
+with a source note — enough for CAN-SPAM, not an immutable consent ledger.
 
-**Rationale:** The reusable, org-wide talent pool is the headline value, and shared-schema RLS makes cross-client reuse *inside* an org trivial. Cross-*tenant* reuse is the legal landmine, so it is off by default (consistent with ARCHITECTURE's reconciliation: "client-embedding space is per-agency-only unless counsel approves anonymized opt-in"). Data-controller/processor split: in **agency mode** the agency is controller and ManFriday is processor; in **direct mode** the company is controller. This is the minimum model that lets Phase 0 fix the `org_id`-scoped `candidate` table without re-partitioning later.
+**Rationale:** Strict org isolation via RLS is the whole tenancy model (invariant #1) and makes cross-org consent
+questions moot. A simple consent flag covers mass-email hygiene without the weight of a ledger.
 
-**Alternatives rejected:** *Client-partitioned candidate* (kills cross-client reuse, the value prop); *globally shared candidate* (cross-tenant leak + consent nightmare).
-
----
-
-## D2. Demographic-data source & sufficiency
-**Status:** 🟡 PROPOSED / ⚖️ NEEDS COUNSEL · **Blocks:** Phase 0 reserved schema; Phase 2 monitoring.
-
-**Decision (proposed):** **Voluntary self-ID only** (EEO-1 template), **no BISG / name-ZIP inference anywhere — ever.** Stored in a **physically/logically segregated** demographics service with its own key and role and **no read path from scoring/ranking** (BFF-blocked), joined only inside an isolated AI-impact analytics job. A **minimum-cell-size policy** (suppress + declare "inconclusive" below a counsel-set N, with pooling across role-family/time) gates whether a gate's stats are valid. **Collection UI ships in Phase 2** (when monitoring goes live); Phase 0 only **reserves** the segregated schema and the non-readable boundary.
-
-**Counsel must confirm:** that voluntary self-ID is binding for our model; the consent text + owner; the minimum-cell N; and whether anonymized cross-tenant pooled baselines are permissible for small tenants/niche roles.
-
-**Rationale:** Matches ARCHITECTURE's reconciliation exactly. The entire EEOC defense rests on this data existing at adequate volume; BISG is both legally fraught and explicitly rejected.
+**Superseded:** the old "blanket-with-revocation consent, 24-month TTL, `consent_ledger` immutable events,
+recruiter-sourced vs candidate-submitted tiers" model, and any cross-org/shared-pool idea (an identity-link build
+was reverted).
 
 ---
 
-## D3. Agency-vs-client EEOC liability allocation
-**Status:** ⚖️ NEEDS COUNSEL · **Blocks:** contracts/DPAs; the audit schema's "accountable principal" fields.
+## D2. (Removed) — Demographic data
+**Status:** 🗑️ REMOVED
 
-**Decision (proposed posture, for counsel to ratify):** Position ManFriday as a **vendor/processor — a tool, not the employer's agent** — and make that posture *defensible by construction*: every employment-affecting decision records the **accountable human principal + their org role** in the immutable audit trail, so "ManFriday is a tool, the human decided" is provable. Contracts/DPAs must codify the controller/processor split with both agencies and their client companies, plus indemnification and who owns the bias audit.
-
-**Rationale:** The "human decides, AI suggests" invariant only limits liability if the audit schema can *prove* a human decided. Phase 0 builds those fields regardless of the legal posture, so this decision doesn't block the schema — but it must be ratified before the design partner signs.
-
----
-
-## D4. Jurisdictional compliance floor
-**Status:** 🟡 PROPOSED / ⚖️ NEEDS COUNSEL · **Blocks:** scope of Phase 2 and Phase 6.
-
-**Decision (proposed):** **US-baseline EEOC** for the MVP (Phases 0–1), run with a **single design-partner agency under contractual cover** at low volume. **Architect** so NYC LL144 + Colorado SB205 + Illinois (intersectional reporting, independent annual audit, AI-video rules) can be **layered in Phase 2/6 without rework** — i.e., don't over-build to all jurisdictions now, but don't paint into a corner (keep demographics segregated, audit immutable, explanations faithful from day one).
-
-**Rationale:** The roadmap already defers multi-jurisdiction breadth to Phase 6 and gates monitoring at Phase 2. Building to every state law at MVP is expensive and premature; the load-bearing controls are jurisdiction-agnostic.
+ManFriday is **not** EEOC-regulated employment-decision software, so it collects **no demographic / protected-class
+data** at all. The entire voluntary-self-ID / segregated-store / minimum-cell-size apparatus is dropped. (Heading
+kept so older links resolve.)
 
 ---
 
-## D5. Retention vs deletion policy
-**Status:** 🟡 PROPOSED / ⚖️ NEEDS COUNSEL · **Blocks:** Phase 0 schema (`deleted_at`, crypto-shred), scheduled deletion jobs.
+## D3. Vendor posture & terms of service
+**Status:** ⚖️ NEEDS LIGHT COUNSEL
 
-**Decision (proposed):** **One authoritative policy.** On deletion request or TTL expiry: **crypto-shred / NULL C3 PII** (per-record/per-tenant key destruction) and **hard-delete resume blobs + embeddings**, while **retaining de-identified decision metadata** (scores, triage, run provenance, counts) under a **documented legal-hold basis** for the EEOC/OFCCP statute-of-limitations window. Row-level demographic links are **pre-aggregated then purged**. Default `pii_retention_days = 730` (24 months from last activity); **placed candidates retained longer** (contract/tax). Per-state variants (Illinois BIPA, California) layered in Phase 6.
+**Decision (proposed):** Position ManFriday as a **software tool / vendor** used by staffing agencies, governed by
+a **standard SaaS Terms of Service + Privacy Policy** (data handling, acceptable use, the agency as the party
+responsible for how it screens). Basic GDPR/CCPA hygiene applies (see [D5](#d5-data-retention--deletion)). No
+EEOC-liability-allocation framing, no per-client DPA machinery, no "accountable principal" audit fields.
 
-**Counsel must confirm:** the minimal de-identified record we may lawfully retain to keep the 4/5ths denominator valid, and the legal-hold basis + duration.
+**Counsel touch (light):** review the SaaS ToS + Privacy Policy and the **CAN-SPAM** posture for outreach
+(unsubscribe + sender identification). Not a launch-blocking, courtroom-grade gate.
 
-**Rationale:** You cannot audit fairness on a deleted population, but you must honor deletion rights — crypto-shred PII while keeping de-identified decision metadata is the standard reconciliation, already in ARCHITECTURE.
-
----
-
-## D6. Per-candidate / per-req cost ceiling
-**Status:** 🟡 PROPOSED · **Blocks:** router routing aggressiveness; LLM-only-vs-commercial-parser build/buy.
-
-**Decision (proposed):** Provisional target **≤ ~$0.20 per fully-screened candidate** at MVP (typical low cents), enforced by a **hard per-tenant monthly token budget + alerts** in the router. Routing: **mid-tier model by default** for parse/extract, **frontier model only** for nuanced fitment judgment + question generation, with **escalation on low confidence**; Batch API for non-interactive bulk re-scoring; prompt + response caching on stable JD/rubric prefixes. **LLM-only resume parsing in Phase 1**; commercial parser deferred to **Phase 3** when volume makes the per-doc fee beat token cost.
-
-**Rationale:** Matches the cost-model sketch. A provisional number unblocks the build; the owner should replace it with the real unit-economics target once volume is known.
+**Superseded:** the "agency-vs-client EEOC liability allocation, vendor-vs-employer's-agent, audit-provable
+human-decided, indemnification + who-owns-the-bias-audit" framing.
 
 ---
 
-## D7. Protocol when a client repeatedly fails 4/5ths
-**Status:** ⚖️ NEEDS COUNSEL · **Blocks:** Phase 5 (not earlier).
+## D4. (Removed) — Jurisdictional compliance floor
+**Status:** 🗑️ REMOVED
 
-**Decision (proposed posture):** **Warn + require human compliance review + automatically dampen personalization to the audited prior; escalate on repeat. Never silently personalize for a known-discriminating client.** This is a customer-relationship + liability decision counsel must ratify before Phase 5 ships.
-
-**Rationale:** Silently personalizing for a client whose own decisions disparately reject a protected group risks making the platform a *knowing* participant. Not a Phase 0/1 blocker — recorded now so it isn't forgotten.
-
----
-
-## D8. Infrastructure / VPC posture
-**Status:** 🟡 PROPOSED · **Blocks:** Phase 0 infra choices; *must be settled before real candidate PII lands*.
-
-**Decision (proposed):** Phase 0/1 on **Neon** (serverless Postgres + pgvector, branch-per-PR economics) for velocity, with an **explicitly planned Aurora-in-VPC migration** before Phase 3 scale. **Hard rule: no real candidate PII lands in Neon until** a signed DPA, US-region pinning, and the envelope-encryption posture are confirmed (until then, dev/test uses synthetic data only). For the strictest tenants, **in-VPC RDS / db-per-tenant** is the Phase 6 escape hatch. Super-admin **break-glass = logged + time-boxed** at MVP; **BYOK / tenant-held keys** deferred to Phase 6.
-
-**Rationale:** Honors both the DX argument for Neon and the "decide before PII lands" warning by gating PII on contractual + encryption readiness. Everything keys on `org_id`, so the Aurora/isolated-tier move is a migration, not a fork.
+No EEOC/AEDT jurisdictional floor (NYC LL144, Colorado SB205, Illinois) is in scope — the product is a recruiter
+tool, not a regulated decision system. Standard SaaS privacy hygiene ([D5](#d5-data-retention--deletion)) is the
+only baseline. (Heading kept so older links resolve.)
 
 ---
 
-## D9. Un-owned spine components
-**Status:** 🟡 PROPOSED · **Blocks:** Phase 1 scope freeze.
+## D5. Data retention & deletion
+**Status:** 🟢 RATIFIED
 
-**Decision (proposed):** Scope the components ARCHITECTURE flagged as un-owned:
-- **Assessment delivery & response capture:** **written + recruiter-administered live** screening; **defer async recorded video** (and its AI-video-law surface) to a later phase.
-- **Client portal / feedback interface:** MVP = a **redacted shortlist view + a structured feedback form** (the input boundary for preference learning). Built in Phase 1; for the single design partner it can start as a simple shared view + form, not a full portal.
-- **Triage state machine:** canonical `UNSCREENED → SCREENING → {GREEN|AMBER|RED}` + `SUBMITTED/CLIENT_ACCEPTED/CLIENT_REJECTED/WITHDRAWN`, with **AMBER recovery** (re-screen/new evidence to move) and **non-terminal RED** (per-req, candidate re-enters pool). Specified in Phase 1.
-- **Communications / adverse-action-notice service:** **stub** in Phase 1 (record the event); full notice generation in Phase 2 with faithful explanations.
-- **Reason-code taxonomy:** define a **v1 controlled vocabulary** for triage reasons in Phase 1 (required by the human-set-triage invariant).
-- **Score-calibration / threshold governance:** thresholds live in the per-req frozen `ScoringSpec`; **owner/admin-configurable with governance + audit**, Phase 1.
+**Decision:** Pragmatic GDPR/CCPA hygiene. **Soft-delete** (`deleted_at`) for normal removal, and **hard-delete on
+request** — purge the candidate row, résumé blobs in Supabase Storage, parsed fields, and any embeddings. No
+crypto-shred, no per-tenant key destruction, no "retain de-identified decision metadata under a legal-hold basis."
+A simple, documented retention default per org is fine; honor deletion requests promptly.
 
-**Rationale:** These are the input/output boundaries of the core loop; leaving them unowned would let Phase 1 scope drift. Each is scoped to the minimum that proves the loop.
+**Rationale:** Candidate data is PII and deserves clean delete semantics, but there is no fairness-audit
+denominator to preserve, so the heavyweight crypto-shred + de-identified-retention reconciliation is unnecessary.
+
+**Superseded:** crypto-shred / per-record key destruction, de-identified decision-metadata retention, EEOC/OFCCP
+statute-of-limitations holds, BIPA/state variants.
 
 ---
 
-## D10. ATS write-back, placement lifecycle & AMBER auto-submit
-**Status:** 🟡 PROPOSED · **Blocks:** Phase 1 vs Phase 3 scope honesty.
+## D6. Per-candidate / per-screen cost ceiling
+**Status:** 🟡 PROPOSED
 
-**Decision (proposed):** **ATS import/write-back deferred to Phase 3** (Merge.dev unified connector). The **`placement` table exists from Phase 1** (outcome ground truth + adverse-impact denominator) but is populated manually until integrations land. **Only GREEN candidates are submitted to clients**; **AMBER is never auto-submitted** — a recruiter must affirmatively promote AMBER→GREEN first.
+**Decision (proposed):** Keep LLM spend modest — deterministic parsing and the lexical matcher are free; LLM calls
+are reserved for **authenticity analysis** (optional), **screening-question generation**, and (Phase 2) **semantic
+matching/embeddings**. Provisional target **≤ ~$0.20 per fully-screened candidate**, with a per-org monthly budget
++ alerts once volume is known. Use a cheap/fast model for bulk work, a stronger model only for question generation.
 
-**Rationale:** Keeps Phase 1 honest and small; capturing placement outcomes early is cheap and feeds later learning. AMBER auto-submit would push low-confidence candidates to clients and erode trust.
+**Rationale:** A provisional number unblocks the build; replace with the real unit-economics target at volume.
+
+---
+
+## D7. (Removed) — Adverse-impact client protocol
+**Status:** 🗑️ REMOVED
+
+There is no adverse-impact / 4-5ths monitoring, so there is no "what to do when a client repeatedly fails 4/5ths"
+protocol. (Heading kept so older links resolve.)
+
+---
+
+## D8. Infrastructure: Supabase + Vercel
+**Status:** 🟢 RATIFIED
+
+**Decision:** **Supabase** (Postgres 16 + pgvector + Storage + Auth) for data/storage/auth, **Vercel** for the
+Next.js app and the TypeScript backend (Route Handlers / Server Actions). **Org isolation = Postgres RLS keyed on
+the `org_id` claim in the Supabase Auth JWT.** Background work uses a TS-friendly pattern (Supabase scheduled
+functions / a queue such as Inngest, Trigger.dev, or QStash / Vercel cron) — exact pick is a rebuild decision.
+
+**Removed:** AWS (Fargate / KMS / S3 / VPC), Neon, Temporal, WorkOS, Redis/Arq, Terraform, the non-`BYPASSRLS`
+`manfriday_app` role + `SET LOCAL` GUC pattern (Supabase Auth + RLS-on-JWT-claim replaces it), and the
+"no real PII until DPA/VPC/envelope-encryption" gate.
+
+**Rationale:** Supabase gives Postgres + pgvector + Storage + Auth + RLS in one managed product that a TypeScript
+app talks to directly — the lean stack the pivot is built around.
+
+---
+
+## D9. Triage states & feedback capture
+**Status:** 🟢 RATIFIED
+
+**Decision:** Keep triage **lightweight and recruiter-set**: the existing `candidate.status`
+(`new → contacted → screening → submitted`) plus `proposal.outcome` (`proposed / interviewing / rejected / hired`),
+set by a human, recorded in the audit log. Client feedback is a **simple structured + free-text form** captured
+against a proposal/screen. **Dropped:** adverse-action notices, a formal reason-code taxonomy, a canonical
+GREEN/AMBER/RED state machine, and score-calibration / threshold governance.
+
+**Rationale:** A simple, human-set status + a feedback form is enough to run the loop and to **capture outcomes for
+learning** (invariant #3). The heavyweight triage governance was an EEOC artifact.
+
+---
+
+## D10. Placement/outcome tracking
+**Status:** 🟢 RATIFIED
+
+**Decision:** Track proposal/placement outcomes (`proposed / interviewing / rejected / hired`, plus a reason)
+**from Phase 1**, populated manually by recruiters. AMBER/GREEN auto-submit machinery is not relevant; submitting a
+candidate to a client is a recruiter action.
+
+**Rationale (reframed):** Capturing outcomes early is cheap and is the **ground-truth signal the ranking learns
+from** over time (invariant #3) — not, as previously framed, an adverse-impact denominator. ATS write-back is an
+optional later integration (Phase 3).
 
 ---
 
 ## D11. Initial vertical / role mix
-**Status:** 🟡 PROPOSED · **Blocks:** how heavily we lean on Lightcast tech depth; the eval gold set.
+**Status:** 🟢 RATIFIED
 
-**Decision (proposed):** Launch focused on **software / technical staffing** (where Lightcast Open Skills has the best depth and our screening-question generation is strongest), with the architecture general enough to broaden to professional staffing later. Build the Phase 1 **gold set** (labeled JD/resume pairs for the span-grounding + scoring regression gates) from this vertical.
-
-**Rationale:** A focused vertical sharpens extraction/scoring quality and makes the design-partner demo credible; breadth (O*NET/ESCO reliance, larger custom overlay) is a later expansion.
+**Decision:** Launch focused on **software / technical staffing**, where the skill lexicon / Lightcast Open Skills
+depth and the screening-question generation are strongest. Architecture stays general enough to broaden later.
 
 ---
 
-## D12. Response modality & AI-assist grading
-**Status:** 🟡 PROPOSED · **Blocks:** Phase 1 grading UI + automation-bias controls.
+## D12. Screening administration & AI-assist grading
+**Status:** 🟢 RATIFIED
 
-**Decision (proposed):** MVP = **recruiter-administered live or written** answers, **graded manually by the recruiter** against the structured JSON rubric, with **AI-assist optional** (AI surfaces the rubric + a suggested score the recruiter can accept/override). **No AI auto-grade** at launch — it is withheld until the recruiter-agreement / automation-bias metrics are calibrated. The UI must **not pre-select** the AI suggestion.
-
-**Rationale:** Directly serves the human-in-the-loop and automation-bias invariants. Auto-grade before calibration is exactly the rubber-stamping risk the architecture warns about.
+**Decision:** Screening is **recruiter-administered** via the generated **15 questions (5 simple / 5 medium / 5
+hard)** with model answer keys. The recruiter **grades manually** against the keys; **AI-assist is optional** (it
+can surface the key and a suggested score the recruiter accepts or overrides). The UI must not pre-select the AI
+suggestion. **Dropped:** automation-bias gating / recruiter-agreement calibration as a launch gate (the
+human-decides invariant covers it).
 
 ---
 
 ## D13. Lightcast license
-**Status:** 🟡 PROPOSED · **Blocks:** Phase 1 taxonomy ingestion.
+**Status:** 🟢 RATIFIED
 
-**Decision (proposed):** Start on the **free Lightcast Open Skills open-data download** self-hosted in Postgres (ltree + per-skill embeddings), accepting its refresh-cadence/rate limits for MVP. Move to the **paid API/license** only if refresh cadence or coverage becomes a real constraint at volume.
-
-**Rationale:** The free download is sufficient to prove the loop for one design partner; the paid license is a volume/coverage decision deferrable past MVP.
+**Decision:** Use the **free Lightcast Open Skills open-data download**, self-hosted in Postgres, **seeded
+initially by the existing ~49-skill lexicon**. Move to the paid API/license only if refresh cadence or coverage
+becomes a real constraint at volume.
 
 ---
 
-## Decisions already reconciled in ARCHITECTURE (recorded here for traceability)
+## Reconciled stack notes (for traceability)
 
-These were resolved in ARCHITECTURE → *Reconciliation & Resolved Trade-offs*; listed so they aren't re-litigated:
+Resolved by the lean pivot; listed so they aren't re-litigated:
 
-- **Auth:** WorkOS for enterprise SSO/SCIM; in-house passwordless magic-link for candidates; **Clerk dropped**.
-- **Background engine:** Arq + Redis in Phase 1; Temporal in Phase 2+ (continuous agents are **not** a Phase 1 promise).
-- **Audit source of record:** the hash-chained `audit_event` table in *all* phases (not Temporal history).
-- **AuthZ:** RLS + scoped JWT for MVP; OpenFGA/SPIFFE deferred.
-- **Demographics:** voluntary self-ID, segregated, **no BISG** (see [D2](#d2-demographic-data-source--sufficiency)).
-- **Score recomputation:** model/prompt/embedding pinned per `ScoringSpec` per req; a version upgrade never retroactively re-scores an open req (re-score only as one new batch for the whole req).
-- **Pre-human filtering:** the recall stage is a **monitored selection gate** (excluded candidates logged + counted in 4/5ths), not neutral search.
-- **AI-text detection:** removed from any candidate-affecting path; blind/redacted screening default-on.
+- **Auth:** **Supabase Auth** (org + recruiter accounts). WorkOS/Clerk **dropped**; no separate candidate IdP.
+- **Isolation:** Postgres **RLS keyed on the `org_id` JWT claim** (Supabase Auth). The old non-`BYPASSRLS` role +
+  `SET LOCAL` GUC pattern is **dropped**.
+- **Background engine:** a TS-friendly pattern (Supabase scheduled functions / Inngest / Trigger.dev / QStash /
+  Vercel cron). Arq/Redis and Temporal **dropped**.
+- **Audit:** a **plain append-only** log of key actions (invariant #4). Hash-chaining **dropped**.
+- **No demographics, no BISG, no adverse-impact / 4-5ths, no redaction-before-egress, no envelope
+  encryption/crypto-shred** anywhere.
+- **Matching:** transparent lexical skill overlap (`0.8·core + 0.2·nice`) today; embeddings/hybrid via pgvector is
+  the Phase-2 accuracy upgrade.
