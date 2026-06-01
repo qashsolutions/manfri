@@ -394,3 +394,17 @@ parts of `/outreach` remain mock-only/throwing.
 Edited only `web/`, `packages/db`, and `web/.env.local`/`.env.example` (gitignored secrets); Python `services/`
 untouched; nothing committed or pushed. Live Supabase: applied migration `0004` and wrote synthetic
 résumé/question rows under the seeded org via the handlers.
+
+---
+
+# ADDENDUM 4 — credential hygiene (2026-06-01)
+
+After the first push, a synthetic demo-user fixture password was hardcoded in the proof scripts. Hardened:
+- **Deleted the two synthetic Supabase Auth users** (`user-a`/`user-b@manfriday-demo.com`) via the Admin API
+  — confirmed the leaked fixture password now returns HTTP 400 (unusable). They are a recreatable test
+  fixture; `web/scripts/delete-demo-users.mts` tears them down, `supabase-auth-proof.ts` recreates them.
+- **Removed the hardcoded password from all 6 scripts** → read from `SEED_USER_PASSWORD` (env-only, no
+  default; the script throws if unset). 0 occurrences of the password remain in the tracked tree.
+- Added `SEED_USER_PASSWORD` to gitignored `web/.env.local` (fresh value) + documented it in `.env.example`.
+- No secrets are in any tracked file (verified): the prior commit's history still contains the old fixture
+  string, but it points to now-deleted users, so it is inert; history was not rewritten.

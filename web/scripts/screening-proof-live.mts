@@ -13,7 +13,7 @@ async function token(): Promise<string> {
   const res = await fetch(`${URL_}/auth/v1/token?grant_type=password`, {
     method: "POST",
     headers: { apikey: ANON, "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "user-a@manfriday-demo.com", password: "***REMOVED***" }),
+    body: JSON.stringify({ email: "user-a@manfriday-demo.com", password: (process.env.SEED_USER_PASSWORD ?? "") }),
   });
   if (!res.ok) throw new Error(`sign-in -> ${res.status}`);
   return ((await res.json()) as { access_token: string }).access_token;

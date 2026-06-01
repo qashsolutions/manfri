@@ -15,13 +15,15 @@ const URL_ = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ADMIN_DB = process.env.DATABASE_URL_ADMIN;
-if (!URL_ || !ANON || !SERVICE || !ADMIN_DB) {
-  throw new Error("supabase-auth-proof: need SUPABASE_URL, anon key, service_role key, DATABASE_URL_ADMIN");
+// The synthetic demo-user password comes from env — never hardcoded/committed. These are
+// throwaway test users (recreated by this script); set SEED_USER_PASSWORD in web/.env.local.
+const PW = process.env.SEED_USER_PASSWORD;
+if (!URL_ || !ANON || !SERVICE || !ADMIN_DB || !PW) {
+  throw new Error("supabase-auth-proof: need SUPABASE_URL, anon key, service_role key, DATABASE_URL_ADMIN, SEED_USER_PASSWORD");
 }
 
 const ORG_A = "00000000-0000-0000-0000-00000000a000";
 const ORG_B = "00000000-0000-0000-0000-00000000b000";
-const PW = "***REMOVED***"; // fixed dev password for the two synthetic users
 const USERS = [
   { email: "user-a@manfriday-demo.com", orgId: ORG_A, label: "ORG A (Acme)" },
   { email: "user-b@manfriday-demo.com", orgId: ORG_B, label: "ORG B (Beacon)" },
