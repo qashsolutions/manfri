@@ -12,6 +12,7 @@ import { cookies } from "next/headers";
 
 import type {
   Audience,
+  Campaign,
   Candidate,
   CandidateDetail,
   CandidateStatus,
@@ -140,8 +141,9 @@ export const apiProvider: DataProvider = {
     return internalGet<MatchDetail>(`/api/v1/screening${q ? `?${q}` : ""}`);
   },
 
-  // Outreach (audience/consent only; send + metrics deferred)
+  // Outreach (audience/consent + campaign list; templates + open/reply metrics deferred)
   getAudience: () => internalGet<Audience>("/api/v1/outreach/audience"),
+  listCampaigns: () => internalGet<Campaign[]>("/api/v1/campaigns"),
 
   // Settings
   getPlan: () => internalGet<Plan>("/api/v1/plan"),
@@ -149,7 +151,6 @@ export const apiProvider: DataProvider = {
 
   // ── Net-new (deferred): throw clear "later step" errors, never faked ──
   getImportQueue: () => laterStep("getImportQueue"),
-  listCampaigns: () => laterStep("listCampaigns"),
   getEmailTemplates: () => laterStep("getEmailTemplates"),
   getOutreachStats: () => laterStep("getOutreachStats"),
 };

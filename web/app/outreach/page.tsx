@@ -1,18 +1,7 @@
 // Render at request time — real data under DATA_SOURCE=api; never prerender an API call.
 export const dynamic = "force-dynamic";
 
-import {
-  ChevronDown,
-  Clock,
-  Eye,
-  FileText,
-  Lock,
-  Mail,
-  Reply,
-  Send,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { Mail, Send, ShieldCheck } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -24,11 +13,11 @@ import {
   type CampaignStatus,
   campaignStatusLabel,
   getAudience,
-  getEmailTemplates,
-  getOutreachStats,
   listCampaigns,
-  mergeFields,
+  listRequisitions,
 } from "@/lib/data";
+
+import { createCampaignAction } from "./actions";
 
 const STATUS_VARIANT = {
   sent: "success",
@@ -37,33 +26,24 @@ const STATUS_VARIANT = {
 } as const satisfies Record<CampaignStatus, "success" | "warning" | "secondary">;
 
 const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground";
-const rate = (r: number) => `${Math.round(r * 100)}%`;
 
 const DEFAULT_BODY = `Hi {{first_name}},
 
-I came across your background in {{top_skill}} and thought of a {{title}} role I'm working on with one of our client partners. The team is strong and the work is squarely in your wheelhouse.
+I came across your background and thought of a role I'm working on with one of our client partners. The team is strong and the work is squarely in your wheelhouse.
 
 Open to a quick chat this week?
 
 Best,
-{{recruiter_name}}`;
+The recruiting team`;
 
 export default async function OutreachPage() {
-  const [campaigns, emailTemplates, audience, outreachStats] = await Promise.all([
+  const [campaigns, audience, requisitions] = await Promise.all([
     listCampaigns(),
-    getEmailTemplates(),
     getAudience(),
-    getOutreachStats(),
+    listRequisitions(),
   ]);
 
-  const pct = (n: number) => Math.round((n / audience.total) * 100);
-
-  const STAT_CARDS = [
-    { label: "Emails sent (30d)", value: outreachStats.sent30d.toLocaleString(), icon: Send },
-    { label: "Avg open rate", value: outreachStats.avgOpenRate, icon: Eye },
-    { label: "Avg reply rate", value: outreachStats.avgReplyRate, icon: Reply },
-    { label: "Unsubscribes (30d)", value: String(outreachStats.unsubscribes30d), icon: ShieldCheck },
-  ];
+  const pct = (n: number) => (audience.total > 0 ? Math.round((n / audience.total) * 100) : 0);
 
   return (
     <AppShell active="outreach" title="Outreach">
@@ -73,131 +53,97 @@ export default async function OutreachPage() {
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" />
           <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Compliant by default.</span> Every send
-            includes one-click unsubscribe and your verified sender identity. Only candidates who
-            opted in are emailable — consent and unsubscribe state is enforced server-side and
-            audited.
+            includes one-click unsubscribe and a physical address (CAN-SPAM). Only opted-in
+            candidates are emailable — pending and unsubscribed are suppressed server-side and the
+            campaign + each recipient send is written to the audit log.
           </p>
-        </div>
-
-        {/* Stat strip */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {STAT_CARDS.map((s) => {
-            const Icon = s.icon;
-            return (
-              <Card key={s.label}>
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">{s.label}</span>
-                    <Icon className="size-4 text-muted-foreground" />
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold tracking-tight">{s.value}</p>
-                </CardContent>
-              </Card>
-            );
-          })}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Composer */}
           <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>New campaign</CardTitle>
-              <CardDescription>
-                Compose once, personalize per candidate with merge fields.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Campaign name</label>
-                <Input defaultValue="Backend talent — Q2 reactivation" />
-              </div>
-
-              {/* Recipients / segment */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Recipients</label>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-md border border-input bg-card px-3 py-2 text-left text-sm shadow-sm transition-colors hover:bg-accent/40"
-                >
-                  <span className="flex items-center gap-2">
-                    <Users className="size-4 text-muted-foreground" />
-                    Opted-in candidates · Backend skills (Python, Go, Java)
-                  </span>
-                  <ChevronDown className="size-4 text-muted-foreground" />
-                </button>
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-success">{audience.optedIn.toLocaleString()}</span>{" "}
-                  emailable · {audience.pendingConsent.toLocaleString()} pending-consent candidates
-                  excluded automatically.
-                </p>
-              </div>
-
-              {/* Templates */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Start from a template</label>
-                <div className="flex flex-wrap gap-2">
-                  {emailTemplates.map((t, i) => (
-                    <Button key={t.id} variant={i === 0 ? "secondary" : "outline"} size="sm">
-                      <FileText className="size-4" />
-                      {t.name}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Subject */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Subject</label>
-                <Input defaultValue="New backend roles at our client partners" />
-              </div>
-
-              {/* Body + merge fields */}
-              <div className="space-y-1.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="text-sm font-medium">Message</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {mergeFields.map((f) => (
-                      <button
-                        key={f}
-                        type="button"
-                        className="rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      >
-                        {f}
-                      </button>
+            <form action={createCampaignAction}>
+              <CardHeader>
+                <CardTitle>New campaign</CardTitle>
+                <CardDescription>
+                  Compose once; we personalize per candidate and send to every opted-in candidate.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {/* Requisition */}
+                <div className="space-y-1.5">
+                  <label htmlFor="requisition_id" className="text-sm font-medium">
+                    Job posting
+                  </label>
+                  <select
+                    id="requisition_id"
+                    name="requisition_id"
+                    required
+                    defaultValue=""
+                    className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="" disabled>
+                      Select a requisition…
+                    </option>
+                    {requisitions.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.title}
+                      </option>
                     ))}
-                  </div>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-success">
+                      {audience.optedIn.toLocaleString()}
+                    </span>{" "}
+                    opted-in candidates will receive this · {audience.pendingConsent.toLocaleString()}{" "}
+                    pending and {audience.unsubscribed.toLocaleString()} unsubscribed excluded
+                    automatically.
+                  </p>
                 </div>
-                <Textarea className="min-h-44" defaultValue={DEFAULT_BODY} />
-              </div>
 
-              {/* CAN-SPAM footer preview */}
-              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
-                <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Lock className="size-3.5" />
-                  Auto-appended · required by CAN-SPAM
+                {/* Subject */}
+                <div className="space-y-1.5">
+                  <label htmlFor="subject" className="text-sm font-medium">
+                    Subject
+                  </label>
+                  <Input
+                    id="subject"
+                    name="subject"
+                    required
+                    defaultValue="New roles at our client partners"
+                  />
                 </div>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  ManFriday Talent on behalf of Northwind Robotics · 100 Congress Ave, Austin, TX
-                  78701
-                  <br />
-                  You received this because you opted in to role alerts.{" "}
-                  <span className="text-primary underline">Unsubscribe</span> · Update preferences
-                </p>
+
+                {/* Body */}
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label htmlFor="body" className="text-sm font-medium">
+                      Message
+                    </label>
+                    <span className="rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                      {"{{first_name}}"} merges per candidate
+                    </span>
+                  </div>
+                  <Textarea id="body" name="body" required className="min-h-44" defaultValue={DEFAULT_BODY} />
+                </div>
+
+                {/* CAN-SPAM footer note */}
+                <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    A physical address and a working one-click{" "}
+                    <span className="font-medium">Unsubscribe</span> link are appended automatically
+                    (required by CAN-SPAM). Unsubscribing is honored instantly and removes the
+                    candidate from all future sends.
+                  </p>
+                </div>
+              </CardContent>
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border p-4">
+                <Button type="submit" size="sm">
+                  <Send className="size-4" />
+                  Create &amp; send campaign
+                </Button>
               </div>
-            </CardContent>
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border p-4">
-              <Button variant="ghost" size="sm">
-                Save draft
-              </Button>
-              <Button variant="outline" size="sm">
-                <Clock className="size-4" />
-                Schedule
-              </Button>
-              <Button size="sm">
-                <Send className="size-4" />
-                Send to {audience.optedIn.toLocaleString()} candidates
-              </Button>
-            </div>
+            </form>
           </Card>
 
           {/* Audience */}
@@ -209,10 +155,7 @@ export default async function OutreachPage() {
             <CardContent className="space-y-4">
               <div className="flex h-2 overflow-hidden rounded-full bg-muted">
                 <div className="bg-success" style={{ width: `${pct(audience.optedIn)}%` }} />
-                <div
-                  className="bg-warning/60"
-                  style={{ width: `${pct(audience.pendingConsent)}%` }}
-                />
+                <div className="bg-warning/60" style={{ width: `${pct(audience.pendingConsent)}%` }} />
                 <div
                   className="bg-muted-foreground/40"
                   style={{ width: `${pct(audience.unsubscribed)}%` }}
@@ -263,7 +206,9 @@ export default async function OutreachPage() {
         <Card className="overflow-hidden p-0">
           <CardHeader className="p-6">
             <CardTitle>Recent campaigns</CardTitle>
-            <CardDescription>Open and reply rates by campaign</CardDescription>
+            <CardDescription>
+              Sends for this org. Open and reply rates arrive with delivery webhooks (next step).
+            </CardDescription>
           </CardHeader>
           <table className="w-full border-collapse text-sm">
             <thead className="border-y border-border bg-muted/40">
@@ -277,6 +222,13 @@ export default async function OutreachPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
+              {campaigns.length === 0 && (
+                <tr>
+                  <td className="px-4 py-8 text-center text-muted-foreground" colSpan={6}>
+                    No campaigns yet. Compose one above to email your opted-in candidates.
+                  </td>
+                </tr>
+              )}
               {campaigns.map((c) => (
                 <tr key={c.id} className="transition-colors hover:bg-accent/40">
                   <td className="px-4 py-3">
@@ -291,10 +243,8 @@ export default async function OutreachPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 tabular-nums text-muted-foreground">{c.recipients}</td>
-                  <td className="px-4 py-3 tabular-nums">{c.status === "sent" ? rate(c.openRate) : "—"}</td>
-                  <td className="px-4 py-3 tabular-nums">
-                    {c.status === "sent" ? rate(c.replyRate) : "—"}
-                  </td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">—</td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">—</td>
                   <td className="px-4 py-3">
                     <Badge variant={STATUS_VARIANT[c.status]}>{campaignStatusLabel[c.status]}</Badge>
                   </td>
