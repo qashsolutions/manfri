@@ -11,7 +11,7 @@ import { GET as statsGET } from "../app/api/v1/stats/route";
 
 const URL_ = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const PW = "Manfriday-Test-9f3c2a";
+const PW = (process.env.SEED_USER_PASSWORD ?? "");
 
 async function signIn(email: string): Promise<string> {
   const res = await fetch(`${URL_}/auth/v1/token?grant_type=password`, {

@@ -28,7 +28,7 @@ async function signIn(email: string, password: string): Promise<string> {
   return ((await res.json()) as { access_token: string }).access_token;
 }
 
-const TOKEN = await signIn("user-a@manfriday-demo.com", "Manfriday-Test-9f3c2a");
+const TOKEN = await signIn("user-a@manfriday-demo.com", (process.env.SEED_USER_PASSWORD ?? ""));
 const req = () => new Request("http://local/api/v1", { headers: { Authorization: `Bearer ${TOKEN}` } });
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
 const j = async (r: Response) => ({ status: r.status, body: await r.json() });

@@ -31,7 +31,7 @@ Senior Backend Engineer — 2016 to present
 Skills: Python, PostgreSQL, AWS, Docker, Kubernetes, Kafka
 Portfolio: https://janedoe.dev`;
 
-const TOKEN = await signIn("user-a@manfriday-demo.com", "Manfriday-Test-9f3c2a");
+const TOKEN = await signIn("user-a@manfriday-demo.com", (process.env.SEED_USER_PASSWORD ?? ""));
 const authed = (body?: unknown) =>
   new Request("http://local/api/v1", {
     method: "POST",
