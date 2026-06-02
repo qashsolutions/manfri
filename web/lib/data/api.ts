@@ -144,6 +144,8 @@ export const apiProvider: DataProvider = {
   // Outreach (audience/consent + campaign list; templates + open/reply metrics deferred)
   getAudience: () => internalGet<Audience>("/api/v1/outreach/audience"),
   listCampaigns: () => internalGet<Campaign[]>("/api/v1/campaigns"),
+  // Outreach (audience/consent only; send + metrics deferred)
+  getAudience: () => internalGet<Audience>("/api/v1/outreach/audience"),
 
   // Settings
   getPlan: () => internalGet<Plan>("/api/v1/plan"),
@@ -151,6 +153,7 @@ export const apiProvider: DataProvider = {
 
   // ── Net-new (deferred): throw clear "later step" errors, never faked ──
   getImportQueue: () => laterStep("getImportQueue"),
+  listCampaigns: () => laterStep("listCampaigns"),
   getEmailTemplates: () => laterStep("getEmailTemplates"),
   getOutreachStats: () => laterStep("getOutreachStats"),
 };
