@@ -12,6 +12,7 @@ import { cookies } from "next/headers";
 
 import type {
   Audience,
+  Campaign,
   Candidate,
   CandidateDetail,
   CandidateStatus,
@@ -140,6 +141,9 @@ export const apiProvider: DataProvider = {
     return internalGet<MatchDetail>(`/api/v1/screening${q ? `?${q}` : ""}`);
   },
 
+  // Outreach (audience/consent + campaign list; templates + open/reply metrics deferred)
+  getAudience: () => internalGet<Audience>("/api/v1/outreach/audience"),
+  listCampaigns: () => internalGet<Campaign[]>("/api/v1/campaigns"),
   // Outreach (audience/consent only; send + metrics deferred)
   getAudience: () => internalGet<Audience>("/api/v1/outreach/audience"),
 

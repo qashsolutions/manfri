@@ -32,6 +32,13 @@
 
 ## 1. Executive Summary
 
+> **Canonical objective.** The north-star objective (the six recruiter capabilities) + the tenancy model are
+> defined once in [`CLAUDE.md` → Core Objective & Tenancy](../CLAUDE.md#core-objective--tenancy-north-star),
+> with a live build scorecard in [`OBJECTIVE.md`](../OBJECTIVE.md). This document describes **how** that
+> objective is built; it does not restate it.
+
+## 1. Executive Summary
+
 ManFriday is a **lean recruiter tool** for staffing agencies in software/technical staffing — its first vertical. One org (a staffing agency) holds many recruiters; **every recruiter in an org sees all of that org's candidates and résumés**, and each org's data is strictly invisible to every other org. The core loop is small and concrete: recruiters create accounts, upload résumés (single and bulk) that get **parsed into structured fields**, upload JDs that get split into **CORE vs NICE weighted skills with a completeness score**, **match and rank** candidates against a JD with a transparent lexical skill-overlap score, generate **15 grounded screening questions** (5 simple / 5 medium / 5 hard) each with a model answer key, set **lightweight triage** (a candidate status plus a per-proposal outcome), and run **mass email outreach** with a simple consent/unsubscribe flag.
 
 Three things make the product defensible and durable without heavyweight machinery. First, **matching is transparent** — a quoted arithmetic formula over evidence (skills present vs. required), never an opaque "fit: 78." Second, **a human recruiter decides** — the tool suggests, assists, surfaces advisory flags, and ranks, but never auto-rejects a candidate. Third, the product **captures decisions, corrections, and outcomes from day one** ("capture data now, learn later") so later phases can improve parsing, ranking, and matching from real usage.
@@ -109,6 +116,9 @@ A recruiter signs in through **Supabase Auth**. The Next.js app holds the Supaba
 
 There is no client-hiring-manager persona, no candidate persona, no auditor persona, and no platform-super-admin break-glass flow in this lean design.
 
+
+There is no client-hiring-manager persona, no candidate persona, no auditor persona, and no platform-super-admin break-glass flow in this lean design.
+
 ---
 
 ## 6. The Screening Workflow & Lightweight Triage
@@ -138,6 +148,9 @@ There is **no GREEN/AMBER/RED state machine and no reason-code taxonomy.** A can
 
 PostgreSQL on Supabase, with `pgvector` enabled (used from Phase 2). Every tenant-scoped table carries `org_id uuid NOT NULL` and an RLS policy keyed on the `org_id` claim in the Supabase Auth JWT (see [§8](#8-auth--tenant-isolation)). UUID primary keys; `created_at timestamptz NOT NULL`. The real tables:
 
+
+PostgreSQL on Supabase, with `pgvector` enabled (used from Phase 2). Every tenant-scoped table carries `org_id uuid NOT NULL` and an RLS policy keyed on the `org_id` claim in the Supabase Auth JWT (see [§8](#8-auth--tenant-isolation)). UUID primary keys; `created_at timestamptz NOT NULL`. The real tables:
+
 | Table | Key columns | Notes |
 |---|---|---|
 | **organization** | `id`, `name`, `created_at`, `deleted_at` | Tenant root = a staffing agency. RLS keyed on `id`. |
@@ -150,6 +163,11 @@ PostgreSQL on Supabase, with `pgvector` enabled (used from Phase 2). Every tenan
 | **proposal** | `id`, `org_id`, `candidate_id`, `requisition_id`, `outcome` (`proposed`/`interviewing`/`rejected`/`hired`), `reason`, `decided_by`, `decided_at`, `created_at` | Candidate × req outcome. The per-req half of triage. |
 | **audit log** | `id`, `org_id`, `actor_id`, `action`, `entity_type`, `entity_id`, `occurred_at` (+ optional before/after) | A simple **append-only** activity log of key actions (invariant #4). No hash chain. |
 | **embedding** | `id`, `org_id`, `owner_type`, `owner_id`, `model_id`, `dim`, `vector`, `created_at` | pgvector rows for semantic matching. **Used from Phase 2**; an HNSW index covers KNN, and RLS filters KNN by `org_id`. |
+
+**Deliberately dropped from the data model** (present in the retired Python schema; not carried into the TypeScript target): the provenance tables `parse_run` / `scoring_run` / `generation_run` and the tall `score` table; `tenant_key` (per-tenant envelope-encryption DEK); `consent_ledger` (replaced by the simple `candidate.consent_state` flag + audit log); any demographics / protected-class table (never existed — see [`EXTRACTION_REPORT.md`](../EXTRACTION_REPORT.md) §1); and any `candidate_identity` / cross-org linkage table (confirmed absent). The `client` entity, per-recruiter scoping, and the old role lookup collapse into the flat org/recruiter model of [§5](#5-personas--tenancy).
+
+**Soft-delete & retention.** Tenant entities carry `deleted_at` for soft-delete (RLS reads append `AND deleted_at IS NULL`). A hard-delete-on-request path removes the candidate, their résumé blobs in Storage, and their rows — pragmatic GDPR/CCPA hygiene, no crypto-shred ceremony ([DECISIONS D5](DECISIONS.md#d5-data-retention--deletion)).
+
 
 **Deliberately dropped from the data model** (present in the retired Python schema; not carried into the TypeScript target): the provenance tables `parse_run` / `scoring_run` / `generation_run` and the tall `score` table; `tenant_key` (per-tenant envelope-encryption DEK); `consent_ledger` (replaced by the simple `candidate.consent_state` flag + audit log); any demographics / protected-class table (never existed — see [`EXTRACTION_REPORT.md`](../EXTRACTION_REPORT.md) §1); and any `candidate_identity` / cross-org linkage table (confirmed absent). The `client` entity, per-recruiter scoping, and the old role lookup collapse into the flat org/recruiter model of [§5](#5-personas--tenancy).
 
@@ -170,6 +188,15 @@ There is no SSO/SCIM, no OpenFGA/ReBAC, no SPIFFE/SPIRE, and no per-request inte
 ---
 
 ## 9. JD Ingestion & CORE/NICE Skill Extraction
+
+A requisition's `jd_text` is turned into a structured, weighted, **recruiter-confirmed** skill rubric — the artifact the matcher ([§11](#11-matching--fitment)) reads.
+
+**Skill taxonomy: Lightcast Open Skills, self-hosted.** The canonical skill backbone is the free **Lightcast Open Skills** download, self-hosted in Postgres (license per [DECISIONS D13](DECISIONS.md#d13-lightcast-license)). It is seeded initially by the existing **~49-skill lexicon** (a precision-biased `canonical → aliases` map covering common software/technical staffing skills, per [`EXTRACTION_REPORT.md`](../EXTRACTION_REPORT.md) §3) and grows into the broader Lightcast vocabulary. Matching surface terms to canonical skills is case-insensitive and edge-bounded on alphanumerics so `C++`, `C#`, `Node.js`, `k8s` resolve cleanly.
+
+**Extraction today, and where it goes.** Per [`EXTRACTION_REPORT.md`](../EXTRACTION_REPORT.md) §3, the current extractor runs the lexicon over `jd_text` and **suggests every found skill as `tier="core"`, `weight=1.0`** — there is no automatic must-have-vs-nice classification or weight inference yet. The recruiter then **re-tiers and re-weights** those suggestions and confirms them; only confirmed `jd_skill` rows become the rubric. **The recruiter override always wins** — suggestions are advisory and are never persisted until confirmed. Smarter CORE/NICE inference (section-heading cues, modal phrasing, optional LLM judgment) is a later additive improvement behind the same confirm-the-rubric interface.
+
+**Completeness score.** A separate deterministic 0–100 rating tells the recruiter how "ready" a JD is, via weighted checks (title, location, employment type, JD text length, presence of ≥3 core skills, presence of ≥1 nice skill), each returning a present/hint result so the recruiter knows what to add.
+
 
 A requisition's `jd_text` is turned into a structured, weighted, **recruiter-confirmed** skill rubric — the artifact the matcher ([§11](#11-matching--fitment)) reads.
 
