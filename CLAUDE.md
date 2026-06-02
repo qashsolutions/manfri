@@ -213,6 +213,7 @@ Supabase (Postgres + pgvector + Storage + Auth).** No separate Python service ti
 | Background jobs | **TS-friendly**: Supabase scheduled functions / a queue (Inngest, Trigger.dev, QStash) / Vercel cron | pattern; exact pick is a rebuild decision |
 | Skills taxonomy | **Lightcast Open Skills** (free download), self-hosted in Postgres | seeded initially by the existing ~49-skill lexicon ([D13](docs/DECISIONS.md)) |
 | LLM (optional) | **Vercel AI SDK** (`ai`) + a provider plugin (Claude / OpenAI), called directly from TS | authenticity analysis, question gen, later semantic matching |
+| Email (outreach) | **Resend** behind an `EmailProvider` seam (SES a later drop-in) | sends Capability #6 campaigns. Domain **`manfriday.app`** **verified** in Resend (SPF/DKIM/DMARC; DNS on **Hostinger**, region us-east-1) — live delivery proven from `no-reply@`. Sender **`no-reply@manfriday.app`**; Reply-To **`admin@manfriday.app`** (candidate replies land in the `admin@` inbox — no Resend inbound). Real-candidate sends still gated on a Resend paid plan (volume) + ⚖️ legal sign-off. **Secrets stay in gitignored `web/.env.local`, never in the repo**: `RESEND_API_KEY`, `UNSUBSCRIBE_SECRET`, `EMAIL_FROM`, `EMAIL_REPLY_TO` (only names appear in docs). |
 | Deploy / CI | **Vercel** + GitHub Actions | typecheck · lint · tests |
 
 **Removed (do not reintroduce):** AWS (Fargate / KMS / S3 / VPC), Neon, Temporal, WorkOS, Redis/Arq, Terraform,

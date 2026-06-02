@@ -37,11 +37,18 @@ function fromAddress(): string {
   return process.env.EMAIL_FROM || "ManFriday <onboarding@resend.dev>";
 }
 
+function replyToAddress(): string | undefined {
+  // Candidate replies should land in a human mailbox, not Resend. EMAIL_REPLY_TO points there
+  // (we don't use Resend inbound). Unset ⇒ replies go to the From address.
+  return process.env.EMAIL_REPLY_TO || undefined;
+}
+
 class ResendProvider implements EmailProvider {
   readonly mode = "resend" as const;
   constructor(
     private readonly apiKey: string,
     private readonly from: string,
+    private readonly replyTo?: string,
   ) {}
 
   async sendBatch(messages: EmailMessage[]): Promise<SendResult[]> {
@@ -54,6 +61,7 @@ class ResendProvider implements EmailProvider {
       to: m.to,
       subject: m.subject,
       html: m.html,
+      ...(this.replyTo ? { replyTo: this.replyTo } : {}),
       ...(m.text ? { text: m.text } : {}),
       ...(m.headers ? { headers: m.headers } : {}),
     }));
@@ -84,6 +92,6 @@ class DryRunProvider implements EmailProvider {
  */
 export function getEmailProvider(): EmailProvider {
   const key = process.env.RESEND_API_KEY;
-  if (key) return new ResendProvider(key, fromAddress());
+  if (key) return new ResendProvider(key, fromAddress(), replyToAddress());
   return new DryRunProvider();
 }
